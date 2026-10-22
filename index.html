@@ -265,6 +265,7 @@ button.small{width:auto;padding:9px 16px;font-size:14px;border-radius:12px}
     <button id="tabFeitas" aria-pressed="false">Finalizadas</button>
     <button id="tabRelE" aria-pressed="false">Relatório</button>
   </div>
+  <button class="ghost" id="btnRetro" style="margin-bottom:16px">+ Registrar entrega já feita</button>
   <div id="listaEntregador"></div>
 </section>
 
@@ -280,9 +281,11 @@ button.small{width:auto;padding:9px 16px;font-size:14px;border-radius:12px}
       <button id="relProx" style="flex:0 0 56px" aria-label="Próximo período">&rsaquo;</button>
     </div>
   </div>
+  <div id="relPag" class="noprint"></div>
   <div id="relatorioArea" class="card"><div id="relCorpo"></div></div>
   <div class="noprint">
-    <button class="primary" id="relImprimir">Imprimir ou salvar PDF</button>
+    <button class="primary hide" id="relSolicitar">Solicitar pagamento</button>
+    <button id="relImprimir" style="margin-top:10px">Imprimir ou salvar PDF</button>
     <div class="row" style="margin-top:10px">
       <button id="relCopiar">Copiar resumo</button>
       <button class="ghost" id="relVoltar">Voltar</button>
@@ -292,6 +295,33 @@ button.small{width:auto;padding:9px 16px;font-size:14px;border-radius:12px}
 </section>
 
 <div class="foot" id="rodape"></div>
+</div>
+
+<div class="modal hide" id="modalRetro">
+  <div class="card">
+    <h2>Registrar entrega já feita</h2>
+    <div class="row">
+      <div class="field"><label for="rData">Dia</label><input id="rData" type="date"></div>
+      <div class="field"><label for="rHora">Hora</label><input id="rHora" type="time" value="12:00"></div>
+    </div>
+    <div class="field"><label for="rEnd">Endereço</label><input id="rEnd" autocomplete="off" placeholder="Rua, número, bairro"></div>
+    <div class="field"><label for="rZona">Região</label><select id="rZona"></select></div>
+    <div class="field"><label for="rRecebeu">Quem recebeu</label><input id="rRecebeu" autocomplete="off" placeholder="Nome"></div>
+    <div class="field">
+      <label>Veículo</label>
+      <div class="seg" id="segRetro">
+        <button data-rv="carro" aria-pressed="true">Carro</button>
+        <button data-rv="moto" aria-pressed="false">Moto</button>
+      </div>
+    </div>
+    <div class="field"><label for="rValor">Valor</label><input id="rValor" inputmode="decimal" placeholder="0,00"></div>
+    <div class="err hide" id="rErr"></div>
+    <div class="sub hide" id="rOk" style="margin:0 0 12px;color:var(--ok)"></div>
+    <div class="row">
+      <button class="ghost" id="rFechar">Fechar</button>
+      <button class="primary" id="rSalvar">Salvar</button>
+    </div>
+  </div>
 </div>
 
 <div class="modal hide" id="modalBaixa">
@@ -427,6 +457,8 @@ async function carregaZonas(){
   $("zona").innerHTML = data.map(z =>
     `<option value="${z.id}">${z.nome} · ${brl(z.valor_fixo)}${z.valor_moto!=null?" / moto "+brl(z.valor_moto):""}</option>`
   ).join("");
+  $("rZona").innerHTML = $("zona").innerHTML;
+  rAtualizaValor();
   atualizaPreco();
 }
 
@@ -579,6 +611,7 @@ function entra(p){
   } else {
     $("papel").textContent = "Entregador";
     $("telaEntregador").classList.remove("hide");
+    carregaZonas();
   }
   carregaPedidos();
   timer = setInterval(carregaPedidos, 30000);
@@ -645,16 +678,32 @@ function rotuloPeriodo(a,b){
   return fmtData(a) + " a " + fmtData(f) + "/" + f.getFullYear();
 }
 
+let relDados = [];
+function isoDia(d){ return d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0") + "-" + String(d.getDate()).padStart(2,"0"); }
+
 async function carregaRelatorio(){
   const [a,b] = periodoRel();
   $("relLabel").textContent = rotuloPeriodo(a,b);
   $("relCorpo").innerHTML = '<div class="empty">Carregando…</div>';
-  const { data, error } = await db.from("baixas")
-    .select("*, pedidos(*)")
-    .gte("concluida_em", a.toISOString()).lt("concluida_em", b.toISOString())
-    .order("concluida_em");
-  if (error) { $("relCorpo").innerHTML = '<div class="empty">Erro ao carregar o relatório.</div>'; return; }
-  desenhaRelatorio(data, a, b);
+  const [rb, rp] = await Promise.all([
+    db.from("baixas").select("*, pedidos(*)")
+      .gte("concluida_em", a.toISOString()).lt("concluida_em", b.toISOString()).order("concluida_em"),
+    db.from("pagamentos").select("*").eq("status", "solicitado").order("solicitado_em")
+  ]);
+  desenhaPag(rp.data || []);
+  if (rb.error) { $("relCorpo").innerHTML = '<div class="empty">Erro ao carregar o relatório.</div>'; return; }
+  relDados = rb.data;
+  desenhaRelatorio(rb.data, a, b);
+}
+
+function desenhaPag(lista){
+  const courier = papel === "entregador";
+  $("relPag").innerHTML = lista.map(p => `<div class="card" style="padding:16px;border-color:var(--gold)">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px"><b>Pagamento solicitado</b><span class="pill warn">aguardando</span></div>
+    <div class="sub" style="margin-top:6px">${esc(fmtData(new Date(p.periodo_inicio + "T00:00:00")))} a ${esc(fmtData(new Date(p.periodo_fim + "T00:00:00")))} · ${esc(p.qtd)} entrega(s) · ${brlc(p.valor)}</div>
+    ${courier ? `<button class="ok" style="margin-top:12px" data-pago="${esc(p.id)}">${IC_OK}Marcar como pago</button>` : ""}
+  </div>`).join("");
+  document.querySelectorAll("[data-pago]").forEach(b => { b.onclick = () => marcaPago(b.dataset.pago); });
 }
 
 function desenhaRelatorio(rows, a, b){
@@ -662,16 +711,22 @@ function desenhaRelatorio(rows, a, b){
   const prob = rows.filter(r => r.motivo_problema);
   const val = r => Number((r.pedidos && r.pedidos.valor_cobrado) || 0);
   const total = ok.reduce((s,r) => s + val(r), 0);
+  const pagoTotal = ok.reduce((s,r) => s + (r.pedidos && r.pedidos.pago_em ? val(r) : 0), 0);
+  const aReceber = total - pagoTotal;
   const grupos = {};
   ok.forEach(r => { const k = dia0(r.concluida_em).getTime(); (grupos[k] = grupos[k] || []).push(r); });
   const chaves = Object.keys(grupos).map(Number).sort((x,y) => x - y);
 
   let h = `<div style="display:flex;align-items:center;gap:14px;margin-bottom:16px"><img src="${LOGO}" alt="" style="width:56px;height:56px;border-radius:50%"><div><h2 style="margin:0">Palácio das Plumas Delivery</h2><div class="sub">Entregas realizadas · ${esc(rotuloPeriodo(a,b))}</div></div></div>
-    <div class="row" style="margin-bottom:8px">
+    <div class="row" style="margin-bottom:10px">
       <div class="stat"><span>Entregas</span><b>${ok.length}</b></div>
       <div class="stat"><span>Total</span><b>${brlc(total)}</b></div>
+    </div>
+    <div class="row" style="margin-bottom:8px">
+      <div class="stat"><span>A receber</span><b>${brlc(aReceber)}</b></div>
+      <div class="stat"><span>Pago</span><b>${brlc(pagoTotal)}</b></div>
     </div>`;
-  let txt = "Palácio das Plumas · Entregas realizadas\n" + rotuloPeriodo(a,b) + "\nEntregas: " + ok.length + " · Total: " + brlc(total) + "\n";
+  let txt = "Palácio das Plumas · Entregas realizadas\n" + rotuloPeriodo(a,b) + "\nEntregas: " + ok.length + " · Total: " + brlc(total) + "\nA receber: " + brlc(aReceber) + " · Pago: " + brlc(pagoTotal) + "\n";
 
   if (!ok.length) h += '<div class="empty">Nenhuma entrega concluída neste período.</div>';
 
@@ -681,10 +736,11 @@ function desenhaRelatorio(rows, a, b){
     txt += "\n" + fmtDataLonga(d) + ": " + lista.length + " entrega(s), " + brlc(sub);
     lista.forEach(r => {
       const p = r.pedidos || {};
+      const st = p.pago_em ? '<div><span class="pill ok">pago</span></div>' : (p.pagamento_id ? '<div><span class="pill warn">solicitado</span></div>' : '');
       h += `<div style="display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid var(--line)">
         <div style="min-width:0"><div style="font-size:15px">${horaBR(r.concluida_em)} · ${esc(p.endereco)}</div>
         <div class="sub">Recebido por ${esc(r.recebido_por)}${r.veiculo_usado ? " · " + esc(r.veiculo_usado) : ""}</div></div>
-        <div style="white-space:nowrap;font-weight:500">${brlc(val(r))}</div></div>`;
+        <div style="text-align:right;white-space:nowrap"><div style="font-weight:500">${brlc(val(r))}</div>${st}</div></div>`;
     });
   });
 
@@ -701,10 +757,34 @@ function desenhaRelatorio(rows, a, b){
   relTexto = txt;
 }
 
+async function solicitaPagamento(){
+  const el = relDados.filter(r => !r.motivo_problema && r.pedidos && !r.pedidos.pago_em && !r.pedidos.pagamento_id);
+  if (!el.length) { msgRel("Nada a solicitar neste período."); return; }
+  const total = el.reduce((s,r) => s + Number(r.pedidos.valor_cobrado || 0), 0);
+  if (!confirm("Solicitar " + brlc(total) + " (" + el.length + " entrega(s)) para a loja?")) return;
+  const [a,b] = periodoRel(); const f = new Date(b); f.setDate(f.getDate() - 1);
+  const { error } = await db.from("pagamentos").insert({
+    periodo_inicio: isoDia(a), periodo_fim: isoDia(f),
+    qtd: el.length, valor: total, pedidos_ids: el.map(r => r.pedido_id)
+  });
+  if (error) { msgRel("Não foi possível registrar a solicitação."); return; }
+  await carregaRelatorio();
+  msgRel("Solicitação registrada. A loja foi avisada no Telegram.");
+}
+
+async function marcaPago(id){
+  if (!confirm("Confirmar que você recebeu este pagamento?")) return;
+  const { error } = await db.from("pagamentos").update({ status: "pago", pago_em: new Date().toISOString() }).eq("id", id);
+  if (error) { msgRel("Não foi possível marcar como pago."); return; }
+  await carregaRelatorio();
+  msgRel("Pagamento registrado.");
+}
+
 function abreRelatorio(){
   $("telaLoja").classList.add("hide"); $("telaEntregador").classList.add("hide");
   $("telaRelatorio").classList.remove("hide");
   relRef = new Date(); $("relMsg").classList.add("hide");
+  $("relSolicitar").classList.toggle("hide", papel !== "entregador");
   carregaRelatorio(); window.scrollTo(0,0);
 }
 function voltaRelatorio(){
@@ -732,6 +812,60 @@ $("relCopiar").onclick = async () => {
     t.remove();
   }
 };
+let rVeic = "carro", rCont = 0;
+function rZonaAtual(){ return zonas.find(z => z.id === Number($("rZona").value)); }
+function rAtualizaValor(){
+  const z = rZonaAtual(); if (!z) return;
+  $("rErr").classList.add("hide");
+  if (rVeic === "moto" && z.valor_moto == null) {
+    rVeic = "carro"; pintaSeg("segRetro", "rv", rVeic);
+    $("rErr").textContent = "Essa região só atende de carro."; $("rErr").classList.remove("hide");
+  }
+  const p = rVeic === "moto" ? z.valor_moto : z.valor_fixo;
+  $("rValor").value = String(p).replace(".", ",");
+}
+function abreRetro(){
+  const iso = isoDia(new Date());
+  $("rData").value = iso; $("rData").max = iso; $("rHora").value = "12:00";
+  $("rEnd").value = ""; $("rRecebeu").value = "";
+  rCont = 0; $("rOk").classList.add("hide"); $("rErr").classList.add("hide");
+  rAtualizaValor();
+  $("modalRetro").classList.remove("hide");
+}
+async function salvaRetro(){
+  const end = $("rEnd").value.trim(), quem = $("rRecebeu").value.trim();
+  const valor = parseFloat($("rValor").value.replace(",", "."));
+  const z = rZonaAtual();
+  const erro = t => { $("rOk").classList.add("hide"); $("rErr").textContent = t; $("rErr").classList.remove("hide"); };
+  if (!$("rData").value) return erro("Escolha o dia.");
+  if (!end || !quem) return erro("Preencha o endereço e quem recebeu.");
+  if (!z) return erro("Escolha a região.");
+  if (!isFinite(valor) || valor <= 0) return erro("Informe o valor.");
+  const quando = new Date($("rData").value + "T" + ($("rHora").value || "12:00") + ":00");
+  if (quando.getTime() > Date.now() + 5*60000) return erro("Esse horário ainda não chegou.");
+  const { error } = await db.rpc("registrar_entrega_feita", {
+    p_endereco: end, p_bairro: z.id, p_recebedor: quem,
+    p_quando: quando.toISOString(), p_veiculo: rVeic, p_valor: valor
+  });
+  if (error) return erro("Não foi possível salvar. Tente de novo.");
+  rCont++;
+  $("rErr").classList.add("hide");
+  $("rOk").textContent = rCont === 1 ? "Registrada. Pode adicionar outra." : rCont + " registradas. Pode adicionar outra.";
+  $("rOk").classList.remove("hide");
+  $("rEnd").value = ""; $("rRecebeu").value = "";
+  carregaPedidos();
+}
+
+$("btnRetro").onclick = abreRetro;
+$("rFechar").onclick = () => $("modalRetro").classList.add("hide");
+$("rSalvar").onclick = salvaRetro;
+$("rZona").onchange = rAtualizaValor;
+$("rEnd").oninput = () => { const z = detectaZona($("rEnd").value); if (z && zonas.some(x => x.id === z)) { $("rZona").value = z; rAtualizaValor(); } };
+document.querySelectorAll("#segRetro button").forEach(b => {
+  b.onclick = () => { rVeic = b.dataset.rv; pintaSeg("segRetro", "rv", rVeic); rAtualizaValor(); };
+});
+$("relSolicitar").onclick = solicitaPagamento;
+
 $("verSenha").onchange = e => { $("pin").type = e.target.checked ? "text" : "password"; };
 
 $("btnSair").classList.add("hide");
