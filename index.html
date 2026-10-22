@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>Entregas · Palácio das Plumas</title>
+<style>
+:root{
+  --bg:#f6f4ef; --card:#ffffff; --ink:#1c1b19; --ink2:#5f5d57; --ink3:#8b8880;
+  --line:#ddd9d0; --line2:#c4bfb3;
+  --accent:#6b4a7a; --accent-bg:#f0eaf4;
+  --ok:#2f6b45; --ok-bg:#e7f2eb;
+  --warn:#8a5a09; --warn-bg:#fbf0dc;
+  --bad:#9c2f2f; --bad-bg:#fbeaea;
+  --radius:12px;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0;background:var(--bg);color:var(--ink);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  font-size:17px;line-height:1.5;
+}
+.wrap{max-width:720px;margin:0 auto;padding:16px 16px 48px}
+h1{font-size:21px;font-weight:600;margin:0}
+h2{font-size:17px;font-weight:600;margin:0 0 12px}
+header.bar{
+  position:sticky;top:env(safe-area-inset-top,0px);z-index:10;
+  background:var(--bg);border-bottom:1px solid var(--line);
+  padding:14px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px;
+}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);background:var(--bg);z-index:11}
+.sub{color:var(--ink2);font-size:14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:14px}
+label{display:block;font-size:14px;color:var(--ink2);margin:0 0 6px;font-weight:500}
+input,select,textarea{
+  width:100%;font:inherit;font-size:17px;color:var(--ink);background:#fff;
+  border:1px solid var(--line2);border-radius:10px;padding:13px 12px;
+}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);outline-offset:1px;border-color:var(--accent)}
+.field{margin-bottom:14px}
+.row{display:flex;gap:10px}
+.row>*{flex:1;min-width:0}
+button{
+  font:inherit;font-size:17px;font-weight:500;cursor:pointer;
+  border-radius:10px;padding:15px 16px;border:1px solid var(--line2);
+  background:#fff;color:var(--ink);width:100%;
+}
+button:active{transform:scale(.99)}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+button.ok{background:var(--ok);border-color:var(--ok);color:#fff}
+button.ghost{background:transparent}
+.seg{display:flex;gap:8px}
+.seg button{padding:13px 8px;font-size:15px}
+.seg button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#fff}
+.price{display:flex;align-items:baseline;justify-content:space-between;border-top:1px solid var(--line);margin-top:4px;padding-top:14px}
+.price b{font-size:30px;font-weight:600}
+.pill{display:inline-block;font-size:13px;font-weight:500;padding:5px 11px;border-radius:999px}
+.pill.accent{background:var(--accent-bg);color:var(--accent)}
+.pill.ok{background:var(--ok-bg);color:var(--ok)}
+.pill.warn{background:var(--warn-bg);color:var(--warn)}
+.pill.bad{background:var(--bad-bg);color:var(--bad)}
+.stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:16px}
+.stat{background:#fff;border:1px solid var(--line);border-radius:10px;padding:12px}
+.stat span{display:block;font-size:13px;color:var(--ink2)}
+.stat b{display:block;font-size:26px;font-weight:600;line-height:1.2}
+.item{background:#fff;border:1px solid var(--line);border-left:5px solid var(--line2);border-radius:0 10px 10px 0;padding:14px;margin-bottom:10px}
+.item.late{border-left-color:var(--bad);background:var(--bad-bg)}
+.item.soon{border-left-color:var(--warn)}
+.item.done{border-left-color:var(--ok);background:var(--ok-bg)}
+.item.prob{border-left-color:var(--bad)}
+.item .top{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:4px}
+.item .hora{font-size:23px;font-weight:600}
+.item .end{font-size:16px}
+.item .meta{font-size:14px;color:var(--ink2);margin-top:2px}
+.item .acts{display:flex;gap:8px;margin-top:12px}
+.item .acts a{flex:1;text-decoration:none}
+.item .acts a button{width:100%}
+.empty{text-align:center;color:var(--ink3);padding:40px 16px;font-size:16px}
+.err{color:var(--bad);font-size:14px;margin-top:6px}
+.hide{display:none}
+.tabs{display:flex;gap:8px;margin-bottom:16px}
+.tabs button[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:#fff}
+.modal{position:absolute;inset:0;background:rgba(28,27,25,.5);padding:16px;overflow-y:auto}
+.modal .card{max-width:560px;margin:24px auto}
+.foot{text-align:center;color:var(--ink3);font-size:13px;margin-top:24px}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#15140f; --card:#211f1a; --ink:#f2efe7; --ink2:#a8a49a; --ink3:#817d74;
+    --line:#35322b; --line2:#4a463d;
+    --accent:#b89ec7; --accent-bg:#2e2635;
+    --ok:#7fc49a; --ok-bg:#1d2b23;
+    --warn:#e0ae5c; --warn-bg:#302616;
+    --bad:#e08585; --bad-bg:#331d1d;
+    color-scheme:dark;
+  }
+  :root:not([data-theme="light"]) input,
+  :root:not([data-theme="light"]) select,
+  :root:not([data-theme="light"]) textarea,
+  :root:not([data-theme="light"]) button{background:#2b2822;color:var(--ink)}
+  :root:not([data-theme="light"]) button.primary{background:var(--accent);color:#1b1620}
+  :root:not([data-theme="light"]) button.ok{background:var(--ok);color:#13241a}
+  :root:not([data-theme="light"]) .seg button[aria-pressed="true"]{background:var(--accent);color:#1b1620}
+  :root:not([data-theme="light"]) .tabs button[aria-pressed="true"]{background:var(--ink);color:#15140f}
+  :root:not([data-theme="light"]) .item{background:var(--card)}
+}
+</style>
+</head>
+<body>
+
+<header class="bar">
+  <div>
+    <h1>Entregas</h1>
+    <div class="sub" id="papel">Palácio das Plumas</div>
+  </div>
+  <button class="ghost" id="btnSair" style="width:auto;padding:9px 14px;font-size:14px">Sair</button>
+</header>
+
+<div class="wrap">
+
+<section id="telaLogin">
+  <div class="card">
+    <h2>Acesso</h2>
+    <div class="field">
+      <label for="pin">Senha</label>
+      <input id="pin" type="password" inputmode="numeric" autocomplete="off" placeholder="Digite a senha">
+      <div class="err hide" id="pinErr">Senha incorreta.</div>
+    </div>
+    <button class="primary" id="btnEntrar">Entrar</button>
+  </div>
+</section>
+
+<section id="telaLoja" class="hide">
+  <div class="tabs">
+    <button id="tabNovo" aria-pressed="true">Novo pedido</button>
+    <button id="tabPainel" aria-pressed="false">Painel do dia</button>
+  </div>
+
+  <div id="viewNovo">
+    <div class="card">
+      <div class="field">
+        <label for="endereco">Endereço completo</label>
+        <input id="endereco" placeholder="Rua, número, bairro">
+      </div>
+      <div class="field">
+        <label for="zona">Região</label>
+        <select id="zona"></select>
+      </div>
+      <div class="field">
+        <label for="destinatario">Quem recebe</label>
+        <input id="destinatario" placeholder="Nome">
+      </div>
+      <div class="row">
+        <div class="field">
+          <label for="telefone">Telefone</label>
+          <input id="telefone" inputmode="tel" placeholder="Opcional">
+        </div>
+        <div class="field">
+          <label for="limite">Entregar até</label>
+          <input id="limite" type="time">
+        </div>
+      </div>
+      <div class="field">
+        <label>Veículo</label>
+        <div class="seg" id="segVeiculo">
+          <button data-v="carro" aria-pressed="false">Carro</button>
+          <button data-v="moto" aria-pressed="false">Moto</button>
+          <button data-v="tanto_faz" aria-pressed="true">Tanto faz</button>
+        </div>
+        <div class="err hide" id="motoErr">Essa região só atende de carro.</div>
+      </div>
+      <div class="field">
+        <label for="obs">Observações</label>
+        <textarea id="obs" rows="2" placeholder="Opcional"></textarea>
+      </div>
+      <div class="price">
+        <span class="sub">Valor da entrega</span>
+        <b id="valor">R$ 0</b>
+      </div>
+    </div>
+    <button class="primary" id="btnCriar">Criar pedido</button>
+    <div class="err hide" id="criaErr"></div>
+  </div>
+
+  <div id="viewPainel" class="hide">
+    <div class="stats">
+      <div class="stat"><span>Pendentes</span><b id="cPend">0</b></div>
+      <div class="stat"><span>Em rota</span><b id="cRota">0</b></div>
+      <div class="stat"><span>Concluídas</span><b id="cFeito">0</b></div>
+      <div class="stat"><span>Com problema</span><b id="cProb">0</b></div>
+    </div>
+    <div id="listaLoja"></div>
+  </div>
+</section>
+
+<section id="telaEntregador" class="hide">
+  <div class="tabs">
+    <button id="tabAtivas" aria-pressed="true">A entregar</button>
+    <button id="tabFeitas" aria-pressed="false">Finalizadas</button>
+  </div>
+  <div id="listaEntregador"></div>
+</section>
+
+<div class="foot" id="rodape"></div>
+</div>
+
+<div class="modal hide" id="modalBaixa">
+  <div class="card">
+    <h2 id="baixaTitulo">Dar baixa</h2>
+    <div class="field">
+      <label>Resultado</label>
+      <div class="seg" id="segResultado">
+        <button data-r="concluida" aria-pressed="true">Entregue</button>
+        <button data-r="com_problema" aria-pressed="false">Com problema</button>
+      </div>
+    </div>
+    <div id="blocoEntregue">
+      <div class="field">
+        <label for="recebedor">Recebido por</label>
+        <input id="recebedor" placeholder="Nome de quem recebeu">
+      </div>
+    </div>
+    <div id="blocoProblema" class="hide">
+      <div class="field">
+        <label for="motivo">Motivo</label>
+        <select id="motivo">
+          <option value="ausente">Ninguém no local</option>
+          <option value="endereco">Endereço não encontrado</option>
+          <option value="recusado">Recusou a entrega</option>
+          <option value="avaria">Mercadoria avariada</option>
+          <option value="reagendar">Reagendar</option>
+          <option value="outro">Outro</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="motivoObs">Detalhe</label>
+        <input id="motivoObs" placeholder="Opcional">
+      </div>
+    </div>
+    <div class="field">
+      <label>Veículo usado</label>
+      <div class="seg" id="segUsado">
+        <button data-u="carro" aria-pressed="true">Carro</button>
+        <button data-u="moto" aria-pressed="false">Moto</button>
+      </div>
+    </div>
+    <div class="field" id="campoKm">
+      <label for="km">Quilometragem final do carro</label>
+      <input id="km" inputmode="decimal" placeholder="Opcional">
+    </div>
+    <div class="err hide" id="baixaErr"></div>
+    <div class="row" style="margin-top:4px">
+      <button class="ghost" id="btnCancelaBaixa">Cancelar</button>
+      <button class="ok" id="btnConfirmaBaixa">Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script>
+const SB_URL = "https://tfcjhrkykjxmrqmtmnzt.supabase.co";
+const SB_KEY = "sb_publishable_hMFjx1Uof1KDkTyNqk7vnQ_0tk-jA9y";
+const db = supabase.createClient(SB_URL, SB_KEY);
+
+const SENHAS = { loja: "plumas25", entregador: "rota25" };
+
+const BAIRROS = {
+  1:["centro","se","sé","republica","república","bela vista","bixiga","liberdade","consolacao","consolação","bom retiro","santa cecilia","santa cecília","campos eliseos","campos elíseos","luz","paraiso","paraíso","aclimacao","aclimação","vila mariana","cambuci","vila monumento","higienopolis","higienópolis","jardins","jardim paulista","bela vista","glicerio","glicério","pari","bras","brás","canindé","caninde"],
+  2:["pinheiros","vila madalena","perdizes","lapa","pompeia","pompéia","barra funda","sumare","sumaré","itaim bibi","moema","vila olimpia","vila olímpia","brooklin","campo belo","santana","vila guilherme","casa verde","santa teresinha","butanta","butantã","vila leopoldina","alto de pinheiros","indianopolis","indianópolis","saude","saúde","ipiranga"],
+  3:["mooca","tatuape","tatuapé","belenzinho","agua rasa","água rasa","vila prudente","sao lucas","são lucas","jabaquara","santo amaro","vila andrade","morumbi","socorro","vila formosa","penha","vila maria","tucuruvi","mandaqui","freguesia do o","freguesia do ó","pirituba","interlagos","cidade ademar","sacoma","sacomã","chacara klabin","chácara klabin","carrao","carrão","aricanduva"],
+  4:["sapopemba","jardim sapopemba","itaquera","sao mateus","são mateus","cidade tiradentes","guaianases","itaim paulista","sao miguel","são miguel","ermelino matarazzo","parque edu chaves","edu chaves","jacana","jaçanã","brasilandia","brasilândia","perus","jaragua","jaraguá","capao redondo","capão redondo","mboi mirim","mbói mirim","grajau","grajaú","parelheiros","cidade dutra","campo limpo","jardim angela","jardim ângela","parque sao lucas","parque são lucas","vila jacui","vila jacuí","cangaiba","cangaíba","itaquaquecetuba"],
+  5:["cotia","granja viana","caucaia do alto"]
+};
+
+let papel = null, zonas = [], veiculo = "tanto_faz", pedidoAtual = null, timer = null;
+let resultado = "concluida", veiculoUsado = "carro";
+const $ = id => document.getElementById(id);
+
+function brl(n){ return "R$ " + Number(n).toLocaleString("pt-BR",{minimumFractionDigits:0,maximumFractionDigits:2}); }
+
+function detectaZona(txt){
+  const t = (txt||"").toLowerCase();
+  for (const z of [5,4,3,2,1]) {
+    for (const b of BAIRROS[z]) { if (t.includes(b)) return z; }
+  }
+  return null;
+}
+
+function zonaAtual(){ return zonas.find(z => z.id === Number($("zona").value)); }
+
+function precoDe(z, v){
+  if (!z) return null;
+  if (v === "moto") return z.valor_moto;
+  return z.valor_fixo;
+}
+
+function atualizaPreco(){
+  const z = zonaAtual();
+  const semMoto = z && z.valor_moto == null;
+  $("motoErr").classList.toggle("hide", !(semMoto && veiculo === "moto"));
+  if (semMoto && veiculo === "moto") { veiculo = "carro"; pintaSeg("segVeiculo","v",veiculo); }
+  const p = precoDe(z, veiculo);
+  $("valor").textContent = p == null ? "R$ 0" : brl(p);
+}
+
+function pintaSeg(wrapId, attr, val){
+  document.querySelectorAll("#"+wrapId+" button").forEach(b=>{
+    b.setAttribute("aria-pressed", b.dataset[attr] === val ? "true" : "false");
+  });
+}
+
+function horaBR(iso){
+  return new Date(iso).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});
+}
+
+function restante(iso){
+  const min = Math.round((new Date(iso) - new Date())/60000);
+  if (min < 0) return { txt:"atrasada " + Math.abs(min) + " min", cls:"late" };
+  if (min <= 45) return { txt:"faltam " + min + " min", cls:"soon" };
+  if (min < 120) return { txt:"faltam " + min + " min", cls:"" };
+  return { txt:"faltam " + Math.floor(min/60) + "h", cls:"" };
+}
+
+function linkRota(end){
+  return "https://www.google.com/maps/dir/?api=1&destination=" + encodeURIComponent(end + ", São Paulo, SP");
+}
+
+async function carregaZonas(){
+  const { data, error } = await db.from("bairros").select("*").order("id");
+  if (error) { $("criaErr").textContent = "Erro ao carregar regiões."; $("criaErr").classList.remove("hide"); return; }
+  zonas = data;
+  $("zona").innerHTML = data.map(z =>
+    `<option value="${z.id}">${z.nome} · ${brl(z.valor_fixo)}${z.valor_moto!=null?" / moto "+brl(z.valor_moto):""}</option>`
+  ).join("");
+  atualizaPreco();
+}
+
+async function carregaPedidos(){
+  const hoje = new Date(); hoje.setHours(0,0,0,0);
+  const { data, error } = await db.from("pedidos")
+    .select("*, baixas(*), bairros(nome)")
+    .gte("horario_limite", hoje.toISOString())
+    .order("horario_limite");
+  if (error) return;
+  if (papel === "loja") pintaLoja(data); else pintaEntregador(data);
+}
+
+function pintaLoja(ps){
+  const c = {pendente:0, em_rota:0, concluida:0, com_problema:0};
+  ps.forEach(p => c[p.status]++);
+  $("cPend").textContent = c.pendente; $("cRota").textContent = c.em_rota;
+  $("cFeito").textContent = c.concluida; $("cProb").textContent = c.com_problema;
+
+  if (!ps.length) { $("listaLoja").innerHTML = '<div class="empty">Nenhum pedido hoje.</div>'; return; }
+
+  $("listaLoja").innerHTML = ps.map(p => {
+    const b = p.baixas && p.baixas[0];
+    let cls = "", badge = "";
+    if (p.status === "concluida") { cls = "done"; badge = `<span class="pill ok">entregue</span>`; }
+    else if (p.status === "com_problema") { cls = "prob"; badge = `<span class="pill bad">${b?b.motivo_problema:"problema"}</span>`; }
+    else { const r = restante(p.horario_limite); cls = r.cls;
+      badge = `<span class="pill ${r.cls==="late"?"bad":r.cls==="soon"?"warn":"accent"}">${p.status==="em_rota"?"em rota · ":""}${r.txt}</span>`; }
+    const extra = b && b.recebido_por ? ` · recebido por ${b.recebido_por}` : "";
+    return `<div class="item ${cls}">
+      <div class="top"><span class="hora">${horaBR(p.horario_limite)}</span>${badge}</div>
+      <div class="end">${p.endereco}</div>
+      <div class="meta">${p.destinatario} · ${brl(p.valor_cobrado)} · ${p.veiculo.replace("_"," ")}${extra}</div>
+    </div>`;
+  }).join("");
+}
+
+function pintaEntregador(ps){
+  const ativas = $("tabAtivas").getAttribute("aria-pressed") === "true";
+  const lista = ps.filter(p => ativas
+    ? (p.status === "pendente" || p.status === "em_rota")
+    : (p.status === "concluida" || p.status === "com_problema"));
+
+  if (!lista.length) { $("listaEntregador").innerHTML = `<div class="empty">${ativas?"Nenhuma entrega pendente.":"Nada finalizado hoje."}</div>`; return; }
+
+  $("listaEntregador").innerHTML = lista.map(p => {
+    const b = p.baixas && p.baixas[0];
+    if (!ativas) {
+      const cls = p.status === "concluida" ? "done" : "prob";
+      const txt = p.status === "concluida" ? "recebido por " + (b?b.recebido_por:"-") : (b?b.motivo_problema:"problema");
+      return `<div class="item ${cls}">
+        <div class="top"><span class="hora">${horaBR(p.horario_limite)}</span><span class="pill ${p.status==="concluida"?"ok":"bad"}">${txt}</span></div>
+        <div class="end">${p.endereco}</div>
+        <div class="meta">${p.destinatario} · ${brl(p.valor_cobrado)}</div>
+      </div>`;
+    }
+    const r = restante(p.horario_limite);
+    return `<div class="item ${r.cls}">
+      <div class="top"><span class="hora">${horaBR(p.horario_limite)}</span>
+        <span class="pill ${r.cls==="late"?"bad":r.cls==="soon"?"warn":"accent"}">${r.txt}</span></div>
+      <div class="end">${p.endereco}</div>
+      <div class="meta">${p.destinatario}${p.telefone?" · "+p.telefone:""} · ${brl(p.valor_cobrado)} · ${p.veiculo.replace("_"," ")}</div>
+      ${p.observacoes?`<div class="meta">${p.observacoes}</div>`:""}
+      <div class="acts">
+        <a href="${linkRota(p.endereco)}" target="_blank" rel="noopener"><button>Abrir rota</button></a>
+        <a href="#" data-baixa="${p.id}" data-end="${p.endereco}" data-dest="${p.destinatario}"><button class="ok">Dar baixa</button></a>
+      </div>
+    </div>`;
+  }).join("");
+
+  document.querySelectorAll("[data-baixa]").forEach(a => {
+    a.onclick = e => { e.preventDefault(); abreBaixa(a.dataset.baixa, a.dataset.end, a.dataset.dest); };
+  });
+}
+
+function abreBaixa(id, end, dest){
+  pedidoAtual = id;
+  $("baixaTitulo").textContent = end;
+  $("recebedor").value = dest || "";
+  $("motivoObs").value = ""; $("km").value = "";
+  resultado = "concluida"; pintaSeg("segResultado","r","concluida");
+  $("blocoEntregue").classList.remove("hide"); $("blocoProblema").classList.add("hide");
+  $("baixaErr").classList.add("hide");
+  $("modalBaixa").classList.remove("hide");
+  window.scrollTo(0,0);
+}
+
+async function confirmaBaixa(){
+  if (resultado === "concluida" && !$("recebedor").value.trim()) {
+    $("baixaErr").textContent = "Informe quem recebeu."; $("baixaErr").classList.remove("hide"); return;
+  }
+  const motivo = $("motivo").options[$("motivo").selectedIndex].text
+    + ($("motivoObs").value.trim() ? " · " + $("motivoObs").value.trim() : "");
+  const reg = {
+    pedido_id: pedidoAtual,
+    recebido_por: resultado === "concluida" ? $("recebedor").value.trim() : "",
+    veiculo_usado: veiculoUsado,
+    km_final: veiculoUsado === "carro" && $("km").value ? parseFloat($("km").value.replace(",", ".")) : null,
+    motivo_problema: resultado === "com_problema" ? motivo : null
+  };
+  const r1 = await db.from("baixas").insert(reg);
+  if (r1.error) { $("baixaErr").textContent = "Erro ao salvar. Tente de novo."; $("baixaErr").classList.remove("hide"); return; }
+  await db.from("pedidos").update({ status: resultado }).eq("id", pedidoAtual);
+  $("modalBaixa").classList.add("hide");
+  carregaPedidos();
+}
+
+async function criaPedido(){
+  const z = zonaAtual();
+  const end = $("endereco").value.trim();
+  const dest = $("destinatario").value.trim();
+  const hora = $("limite").value;
+  if (!end || !dest || !hora || !z) {
+    $("criaErr").textContent = "Preencha endereço, quem recebe e o horário."; $("criaErr").classList.remove("hide"); return;
+  }
+  const d = new Date(); const [h,m] = hora.split(":");
+  d.setHours(Number(h), Number(m), 0, 0);
+  if (d < new Date()) d.setDate(d.getDate() + 1);
+
+  const r = await db.from("pedidos").insert({
+    endereco: end, bairro_id: z.id, destinatario: dest,
+    telefone: $("telefone").value.trim() || null,
+    horario_limite: d.toISOString(), veiculo,
+    valor_cobrado: precoDe(z, veiculo),
+    observacoes: $("obs").value.trim() || null
+  });
+  if (r.error) { $("criaErr").textContent = "Erro ao criar. Tente de novo."; $("criaErr").classList.remove("hide"); return; }
+  $("endereco").value = ""; $("destinatario").value = ""; $("telefone").value = "";
+  $("limite").value = ""; $("obs").value = "";
+  $("criaErr").classList.add("hide");
+  trocaAba("painel"); carregaPedidos();
+}
+
+function trocaAba(qual){
+  const novo = qual === "novo";
+  $("tabNovo").setAttribute("aria-pressed", novo); $("tabPainel").setAttribute("aria-pressed", !novo);
+  $("viewNovo").classList.toggle("hide", !novo); $("viewPainel").classList.toggle("hide", novo);
+}
+
+function entra(p){
+  papel = p;
+  sessionStorage.setItem("papel", p);
+  $("telaLogin").classList.add("hide");
+  $("btnSair").classList.remove("hide");
+  if (p === "loja") {
+    $("papel").textContent = "Loja · Palácio das Plumas";
+    $("telaLoja").classList.remove("hide");
+    carregaZonas();
+  } else {
+    $("papel").textContent = "Entregador";
+    $("telaEntregador").classList.remove("hide");
+  }
+  carregaPedidos();
+  timer = setInterval(carregaPedidos, 30000);
+}
+
+$("btnEntrar").onclick = () => {
+  const v = $("pin").value.trim();
+  if (v === SENHAS.loja) entra("loja");
+  else if (v === SENHAS.entregador) entra("entregador");
+  else { $("pinErr").classList.remove("hide"); }
+};
+$("pin").oninput = () => $("pinErr").classList.add("hide");
+$("pin").onkeydown = e => { if (e.key === "Enter") $("btnEntrar").click(); };
+
+$("btnSair").onclick = () => { sessionStorage.removeItem("papel"); location.reload(); };
+
+$("endereco").oninput = () => {
+  const z = detectaZona($("endereco").value);
+  if (z) { $("zona").value = z; atualizaPreco(); }
+};
+$("zona").onchange = atualizaPreco;
+
+document.querySelectorAll("#segVeiculo button").forEach(b => {
+  b.onclick = () => { veiculo = b.dataset.v; pintaSeg("segVeiculo","v",veiculo); atualizaPreco(); };
+});
+document.querySelectorAll("#segResultado button").forEach(b => {
+  b.onclick = () => {
+    resultado = b.dataset.r; pintaSeg("segResultado","r",resultado);
+    $("blocoEntregue").classList.toggle("hide", resultado !== "concluida");
+    $("blocoProblema").classList.toggle("hide", resultado === "concluida");
+    $("baixaErr").classList.add("hide");
+  };
+});
+document.querySelectorAll("#segUsado button").forEach(b => {
+  b.onclick = () => {
+    veiculoUsado = b.dataset.u; pintaSeg("segUsado","u",veiculoUsado);
+    $("campoKm").classList.toggle("hide", veiculoUsado !== "carro");
+  };
+});
+
+$("btnCriar").onclick = criaPedido;
+$("btnConfirmaBaixa").onclick = confirmaBaixa;
+$("btnCancelaBaixa").onclick = () => $("modalBaixa").classList.add("hide");
+$("tabNovo").onclick = () => trocaAba("novo");
+$("tabPainel").onclick = () => { trocaAba("painel"); carregaPedidos(); };
+$("tabAtivas").onclick = () => { $("tabAtivas").setAttribute("aria-pressed","true"); $("tabFeitas").setAttribute("aria-pressed","false"); carregaPedidos(); };
+$("tabFeitas").onclick = () => { $("tabAtivas").setAttribute("aria-pressed","false"); $("tabFeitas").setAttribute("aria-pressed","true"); carregaPedidos(); };
+
+$("btnSair").classList.add("hide");
+const salvo = sessionStorage.getItem("papel");
+if (salvo === "loja" || salvo === "entregador") entra(salvo);
+const hash = location.hash.replace("#","");
+if (hash === "entregador" || hash === "loja") $("pin").focus();
+</script>
+</body>
+</html>
