@@ -88,6 +88,15 @@ button.ghost{background:transparent}
 .modal{position:absolute;inset:0;background:rgba(28,27,25,.5);padding:16px;overflow-y:auto}
 .modal .card{max-width:560px;margin:24px auto}
 .foot{text-align:center;color:var(--ink3);font-size:13px;margin-top:24px}
+.tabs button{padding:13px 6px;font-size:15px}
+@media print{
+  html,body{background:#fff!important;color:#000!important}
+  body::before,header.bar,.tabs,.noprint,#telaLogin,#telaLoja,#telaEntregador,.foot,.modal{display:none!important}
+  .wrap{max-width:none;padding:0}
+  #relatorioArea{border:none!important;padding:0!important;background:#fff!important}
+  #relatorioArea,#relatorioArea *{color:#000!important;background:transparent!important;border-color:#888!important}
+  #relatorioArea .stat{border:1px solid #888!important}
+}
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
     --bg:#15140f; --card:#211f1a; --ink:#f2efe7; --ink2:#a8a49a; --ink3:#817d74;
@@ -127,7 +136,8 @@ button.ghost{background:transparent}
     <h2>Acesso</h2>
     <div class="field">
       <label for="pin">Senha</label>
-      <input id="pin" type="password" inputmode="numeric" autocomplete="off" placeholder="Digite a senha">
+      <input id="pin" type="password" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="Digite a senha">
+      <label style="display:flex;align-items:center;gap:8px;margin:12px 0 0;font-size:15px"><input type="checkbox" id="verSenha" style="width:20px;height:20px;padding:0"> Mostrar senha</label>
       <div class="err hide" id="pinErr">Senha incorreta.</div>
     </div>
     <button class="primary" id="btnEntrar">Entrar</button>
@@ -138,6 +148,7 @@ button.ghost{background:transparent}
   <div class="tabs">
     <button id="tabNovo" aria-pressed="true">Novo pedido</button>
     <button id="tabPainel" aria-pressed="false">Painel do dia</button>
+    <button id="tabRelL" aria-pressed="false">Relatório</button>
   </div>
 
   <div id="viewNovo">
@@ -201,8 +212,32 @@ button.ghost{background:transparent}
   <div class="tabs">
     <button id="tabAtivas" aria-pressed="true">A entregar</button>
     <button id="tabFeitas" aria-pressed="false">Finalizadas</button>
+    <button id="tabRelE" aria-pressed="false">Relatório</button>
   </div>
   <div id="listaEntregador"></div>
+</section>
+
+<section id="telaRelatorio" class="hide">
+  <div class="noprint">
+    <div class="seg" id="segPeriodo" style="margin-bottom:12px">
+      <button data-p="dia" aria-pressed="false">Dia</button>
+      <button data-p="semana" aria-pressed="true">Semana</button>
+    </div>
+    <div class="row" style="align-items:center;margin-bottom:14px">
+      <button id="relAnt" style="flex:0 0 56px" aria-label="Período anterior">&lsaquo;</button>
+      <div id="relLabel" style="flex:1;text-align:center;font-weight:500"></div>
+      <button id="relProx" style="flex:0 0 56px" aria-label="Próximo período">&rsaquo;</button>
+    </div>
+  </div>
+  <div id="relatorioArea" class="card"><div id="relCorpo"></div></div>
+  <div class="noprint">
+    <button class="primary" id="relImprimir">Imprimir ou salvar PDF</button>
+    <div class="row" style="margin-top:10px">
+      <button id="relCopiar">Copiar resumo</button>
+      <button class="ghost" id="relVoltar">Voltar</button>
+    </div>
+    <div class="sub hide" id="relMsg" style="margin-top:10px;text-align:center"></div>
+  </div>
 </section>
 
 <div class="foot" id="rodape"></div>
@@ -361,14 +396,14 @@ function pintaLoja(ps){
     const b = p.baixas && p.baixas[0];
     let cls = "", badge = "";
     if (p.status === "concluida") { cls = "done"; badge = `<span class="pill ok">entregue</span>`; }
-    else if (p.status === "com_problema") { cls = "prob"; badge = `<span class="pill bad">${b?b.motivo_problema:"problema"}</span>`; }
+    else if (p.status === "com_problema") { cls = "prob"; badge = `<span class="pill bad">${esc(b?b.motivo_problema:"problema")}</span>`; }
     else { const r = restante(p.horario_limite); cls = r.cls;
       badge = `<span class="pill ${r.cls==="late"?"bad":r.cls==="soon"?"warn":"accent"}">${p.status==="em_rota"?"em rota · ":""}${r.txt}</span>`; }
-    const extra = b && b.recebido_por ? ` · recebido por ${b.recebido_por}` : "";
+    const extra = b && b.recebido_por ? ` · recebido por ${esc(b.recebido_por)}` : "";
     return `<div class="item ${cls}">
       <div class="top"><span class="hora">${horaBR(p.horario_limite)}</span>${badge}</div>
-      <div class="end">${p.endereco}</div>
-      <div class="meta">${p.destinatario} · ${brl(p.valor_cobrado)} · ${p.veiculo.replace("_"," ")}${extra}</div>
+      <div class="end">${esc(p.endereco)}</div>
+      <div class="meta">${esc(p.destinatario)} · ${brl(p.valor_cobrado)} · ${p.veiculo.replace("_"," ")}${extra}</div>
     </div>`;
   }).join("");
 }
@@ -387,21 +422,21 @@ function pintaEntregador(ps){
       const cls = p.status === "concluida" ? "done" : "prob";
       const txt = p.status === "concluida" ? "recebido por " + (b?b.recebido_por:"-") : (b?b.motivo_problema:"problema");
       return `<div class="item ${cls}">
-        <div class="top"><span class="hora">${horaBR(p.horario_limite)}</span><span class="pill ${p.status==="concluida"?"ok":"bad"}">${txt}</span></div>
-        <div class="end">${p.endereco}</div>
-        <div class="meta">${p.destinatario} · ${brl(p.valor_cobrado)}</div>
+        <div class="top"><span class="hora">${horaBR(p.horario_limite)}</span><span class="pill ${p.status==="concluida"?"ok":"bad"}">${esc(txt)}</span></div>
+        <div class="end">${esc(p.endereco)}</div>
+        <div class="meta">${esc(p.destinatario)} · ${brl(p.valor_cobrado)}</div>
       </div>`;
     }
     const r = restante(p.horario_limite);
     return `<div class="item ${r.cls}">
       <div class="top"><span class="hora">${horaBR(p.horario_limite)}</span>
         <span class="pill ${r.cls==="late"?"bad":r.cls==="soon"?"warn":"accent"}">${r.txt}</span></div>
-      <div class="end">${p.endereco}</div>
-      <div class="meta">${p.destinatario}${p.telefone?" · "+p.telefone:""} · ${brl(p.valor_cobrado)} · ${p.veiculo.replace("_"," ")}</div>
-      ${p.observacoes?`<div class="meta">${p.observacoes}</div>`:""}
+      <div class="end">${esc(p.endereco)}</div>
+      <div class="meta">${esc(p.destinatario)}${p.telefone?" · "+esc(p.telefone):""} · ${brl(p.valor_cobrado)} · ${p.veiculo.replace("_"," ")}</div>
+      ${p.observacoes?`<div class="meta">${esc(p.observacoes)}</div>`:""}
       <div class="acts">
         <a href="${linkRota(p.endereco)}" target="_blank" rel="noopener"><button>Abrir rota</button></a>
-        <a href="#" data-baixa="${p.id}" data-end="${p.endereco}" data-dest="${p.destinatario}"><button class="ok">Dar baixa</button></a>
+        <a href="#" data-baixa="${p.id}" data-end="${esc(p.endereco)}" data-dest="${esc(p.destinatario)}"><button class="ok">Dar baixa</button></a>
       </div>
     </div>`;
   }).join("");
@@ -534,6 +569,114 @@ $("tabNovo").onclick = () => trocaAba("novo");
 $("tabPainel").onclick = () => { trocaAba("painel"); carregaPedidos(); };
 $("tabAtivas").onclick = () => { $("tabAtivas").setAttribute("aria-pressed","true"); $("tabFeitas").setAttribute("aria-pressed","false"); carregaPedidos(); };
 $("tabFeitas").onclick = () => { $("tabAtivas").setAttribute("aria-pressed","false"); $("tabFeitas").setAttribute("aria-pressed","true"); carregaPedidos(); };
+
+function esc(s){ return String(s==null?"":s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+function brlc(n){ return "R$ " + Number(n).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2}); }
+
+let relModo = "semana", relRef = new Date(), relTexto = "";
+function dia0(d){ const x = new Date(d); x.setHours(0,0,0,0); return x; }
+function periodoRel(){
+  if (relModo === "dia") { const a = dia0(relRef), b = new Date(a); b.setDate(b.getDate()+1); return [a,b]; }
+  const a = dia0(relRef); a.setDate(a.getDate() - ((a.getDay()+6)%7));
+  const b = new Date(a); b.setDate(b.getDate()+7); return [a,b];
+}
+function fmtData(d){ return d.toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit"}); }
+function fmtDataLonga(d){ return d.toLocaleDateString("pt-BR",{weekday:"long",day:"2-digit",month:"2-digit"}); }
+function rotuloPeriodo(a,b){
+  if (relModo === "dia") return a.toLocaleDateString("pt-BR",{weekday:"long",day:"2-digit",month:"2-digit",year:"numeric"});
+  const f = new Date(b); f.setDate(f.getDate()-1);
+  return fmtData(a) + " a " + fmtData(f) + "/" + f.getFullYear();
+}
+
+async function carregaRelatorio(){
+  const [a,b] = periodoRel();
+  $("relLabel").textContent = rotuloPeriodo(a,b);
+  $("relCorpo").innerHTML = '<div class="empty">Carregando…</div>';
+  const { data, error } = await db.from("baixas")
+    .select("*, pedidos(*)")
+    .gte("concluida_em", a.toISOString()).lt("concluida_em", b.toISOString())
+    .order("concluida_em");
+  if (error) { $("relCorpo").innerHTML = '<div class="empty">Erro ao carregar o relatório.</div>'; return; }
+  desenhaRelatorio(data, a, b);
+}
+
+function desenhaRelatorio(rows, a, b){
+  const ok = rows.filter(r => !r.motivo_problema);
+  const prob = rows.filter(r => r.motivo_problema);
+  const val = r => Number((r.pedidos && r.pedidos.valor_cobrado) || 0);
+  const total = ok.reduce((s,r) => s + val(r), 0);
+  const grupos = {};
+  ok.forEach(r => { const k = dia0(r.concluida_em).getTime(); (grupos[k] = grupos[k] || []).push(r); });
+  const chaves = Object.keys(grupos).map(Number).sort((x,y) => x - y);
+
+  let h = `<h2 style="margin-bottom:2px">Palácio das Plumas · Entregas realizadas</h2>
+    <div class="sub" style="margin-bottom:14px">${esc(rotuloPeriodo(a,b))}</div>
+    <div class="row" style="margin-bottom:8px">
+      <div class="stat"><span>Entregas</span><b>${ok.length}</b></div>
+      <div class="stat"><span>Total</span><b>${brlc(total)}</b></div>
+    </div>`;
+  let txt = "Palácio das Plumas · Entregas realizadas\n" + rotuloPeriodo(a,b) + "\nEntregas: " + ok.length + " · Total: " + brlc(total) + "\n";
+
+  if (!ok.length) h += '<div class="empty">Nenhuma entrega concluída neste período.</div>';
+
+  chaves.forEach(k => {
+    const lista = grupos[k], sub = lista.reduce((s,r) => s + val(r), 0), d = new Date(k);
+    h += `<div style="display:flex;justify-content:space-between;align-items:baseline;border-bottom:1px solid var(--line2);padding:8px 0 4px;margin-top:14px"><b style="text-transform:capitalize">${esc(fmtDataLonga(d))}</b><span>${lista.length} · ${brlc(sub)}</span></div>`;
+    txt += "\n" + fmtDataLonga(d) + ": " + lista.length + " entrega(s), " + brlc(sub);
+    lista.forEach(r => {
+      const p = r.pedidos || {};
+      h += `<div style="display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid var(--line)">
+        <div style="min-width:0"><div style="font-size:15px">${horaBR(r.concluida_em)} · ${esc(p.endereco)}</div>
+        <div class="sub">Recebido por ${esc(r.recebido_por)}${r.veiculo_usado ? " · " + esc(r.veiculo_usado) : ""}</div></div>
+        <div style="white-space:nowrap;font-weight:500">${brlc(val(r))}</div></div>`;
+    });
+  });
+
+  if (prob.length) {
+    h += '<div style="margin-top:22px"><b>Não concluídas (fora do total)</b></div>';
+    prob.forEach(r => {
+      const p = r.pedidos || {};
+      h += `<div style="padding:8px 0;border-bottom:1px solid var(--line)"><div style="font-size:15px">${fmtData(new Date(r.concluida_em))} ${horaBR(r.concluida_em)} · ${esc(p.endereco)}</div><div class="sub">${esc(r.motivo_problema)}</div></div>`;
+    });
+    txt += "\n\nNão concluídas (fora do total): " + prob.length;
+  }
+  h += `<div class="sub" style="margin-top:18px;font-size:12px">Emitido em ${esc(new Date().toLocaleString("pt-BR"))}</div>`;
+  $("relCorpo").innerHTML = h;
+  relTexto = txt;
+}
+
+function abreRelatorio(){
+  $("telaLoja").classList.add("hide"); $("telaEntregador").classList.add("hide");
+  $("telaRelatorio").classList.remove("hide");
+  relRef = new Date(); $("relMsg").classList.add("hide");
+  carregaRelatorio(); window.scrollTo(0,0);
+}
+function voltaRelatorio(){
+  $("telaRelatorio").classList.add("hide");
+  $(papel === "loja" ? "telaLoja" : "telaEntregador").classList.remove("hide");
+  carregaPedidos();
+}
+function msgRel(t){ $("relMsg").textContent = t; $("relMsg").classList.remove("hide"); }
+function passo(dir){ relRef = new Date(relRef); relRef.setDate(relRef.getDate() + dir * (relModo === "dia" ? 1 : 7)); carregaRelatorio(); }
+
+$("tabRelL").onclick = abreRelatorio;
+$("tabRelE").onclick = abreRelatorio;
+$("relVoltar").onclick = voltaRelatorio;
+$("relAnt").onclick = () => passo(-1);
+$("relProx").onclick = () => passo(1);
+$("relImprimir").onclick = () => window.print();
+document.querySelectorAll("#segPeriodo button").forEach(b => {
+  b.onclick = () => { relModo = b.dataset.p; pintaSeg("segPeriodo","p",relModo); carregaRelatorio(); };
+});
+$("relCopiar").onclick = async () => {
+  try { await navigator.clipboard.writeText(relTexto); msgRel("Resumo copiado."); }
+  catch (e) {
+    const t = document.createElement("textarea"); t.value = relTexto; document.body.appendChild(t); t.select();
+    try { document.execCommand("copy"); msgRel("Resumo copiado."); } catch (_) { msgRel("Não foi possível copiar."); }
+    t.remove();
+  }
+};
+$("verSenha").onchange = e => { $("pin").type = e.target.checked ? "text" : "password"; };
 
 $("btnSair").classList.add("hide");
 const salvo = sessionStorage.getItem("papel");
