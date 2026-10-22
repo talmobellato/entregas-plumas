@@ -201,14 +201,9 @@ button.small{width:auto;padding:9px 16px;font-size:14px;border-radius:12px}
   <div id="viewNovo">
     <div class="card">
       <div class="sec">Destino</div>
-      <div class="field">
+      <div class="field" style="margin-bottom:0">
         <label for="endereco">Endereço completo</label>
         <input id="endereco" autocomplete="off" placeholder="Rua, número, bairro">
-      </div>
-      <div class="field" style="margin-bottom:0">
-        <label for="zona">Região de entrega</label>
-        <select id="zona"></select>
-        <div class="hint">Identificada pelo bairro. Ajuste se precisar.</div>
       </div>
 
       <div class="sec">Recebimento</div>
@@ -233,7 +228,17 @@ button.small{width:auto;padding:9px 16px;font-size:14px;border-radius:12px}
         <button data-v="moto" aria-pressed="false">Moto</button>
         <button data-v="tanto_faz" aria-pressed="true">Tanto faz</button>
       </div>
-      <div class="err hide" id="motoErr">Essa região só atende de carro.</div>
+      <div class="sec">Cotação</div>
+      <div class="field">
+        <label for="cotApp">Aplicativo da cotação</label>
+        <input id="cotApp" list="appsCot" autocomplete="off" placeholder="Ex.: Uber, 99">
+        <datalist id="appsCot"><option value="Uber"><option value="99"><option value="Lalamove"><option value="Loggi"></datalist>
+      </div>
+      <div class="field" style="margin-bottom:0">
+        <label for="cotValor">Valor que apareceu</label>
+        <input id="cotValor" inputmode="decimal" placeholder="0,00">
+        <div class="hint">Simule a corrida no aplicativo, com o mesmo tipo de veículo, e informe o valor.</div>
+      </div>
 
       <div class="field" style="margin:22px 0 0">
         <label for="obs">Observações</label>
@@ -305,7 +310,7 @@ button.small{width:auto;padding:9px 16px;font-size:14px;border-radius:12px}
       <div class="field"><label for="rHora">Hora</label><input id="rHora" type="time" value="12:00"></div>
     </div>
     <div class="field"><label for="rEnd">Endereço</label><input id="rEnd" autocomplete="off" placeholder="Rua, número, bairro"></div>
-    <div class="field"><label for="rZona">Região</label><select id="rZona"></select></div>
+    <div class="field"><label for="rApp">Aplicativo da cotação (opcional)</label><input id="rApp" list="appsCot" autocomplete="off" placeholder="Ex.: Uber, 99"></div>
     <div class="field"><label for="rRecebeu">Quem recebeu</label><input id="rRecebeu" autocomplete="off" placeholder="Nome"></div>
     <div class="field">
       <label>Veículo</label>
@@ -389,43 +394,15 @@ const IC_OK = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" strok
 
 const SENHAS = { loja: "plumas25", entregador: "rota25" };
 
-const BAIRROS = {
-  1:["centro","se","sé","republica","república","bela vista","bixiga","liberdade","consolacao","consolação","bom retiro","santa cecilia","santa cecília","campos eliseos","campos elíseos","luz","paraiso","paraíso","aclimacao","aclimação","vila mariana","cambuci","vila monumento","higienopolis","higienópolis","jardins","jardim paulista","bela vista","glicerio","glicério","pari","bras","brás","canindé","caninde"],
-  2:["pinheiros","vila madalena","perdizes","lapa","pompeia","pompéia","barra funda","sumare","sumaré","itaim bibi","moema","vila olimpia","vila olímpia","brooklin","campo belo","santana","vila guilherme","casa verde","santa teresinha","butanta","butantã","vila leopoldina","alto de pinheiros","indianopolis","indianópolis","saude","saúde","ipiranga"],
-  3:["mooca","tatuape","tatuapé","belenzinho","agua rasa","água rasa","vila prudente","sao lucas","são lucas","jabaquara","santo amaro","vila andrade","morumbi","socorro","vila formosa","penha","vila maria","tucuruvi","mandaqui","freguesia do o","freguesia do ó","pirituba","interlagos","cidade ademar","sacoma","sacomã","chacara klabin","chácara klabin","carrao","carrão","aricanduva"],
-  4:["sapopemba","jardim sapopemba","itaquera","sao mateus","são mateus","cidade tiradentes","guaianases","itaim paulista","sao miguel","são miguel","ermelino matarazzo","parque edu chaves","edu chaves","jacana","jaçanã","brasilandia","brasilândia","perus","jaragua","jaraguá","capao redondo","capão redondo","mboi mirim","mbói mirim","grajau","grajaú","parelheiros","cidade dutra","campo limpo","jardim angela","jardim ângela","parque sao lucas","parque são lucas","vila jacui","vila jacuí","cangaiba","cangaíba","itaquaquecetuba"],
-  5:["cotia","granja viana","caucaia do alto"]
-};
-
 let papel = null, zonas = [], veiculo = "tanto_faz", pedidoAtual = null, timer = null;
 let resultado = "concluida", veiculoUsado = "carro";
 const $ = id => document.getElementById(id);
 
 function brl(n){ return "R$ " + Number(n).toLocaleString("pt-BR",{minimumFractionDigits:0,maximumFractionDigits:2}); }
 
-function detectaZona(txt){
-  const t = (txt||"").toLowerCase();
-  for (const z of [5,4,3,2,1]) {
-    for (const b of BAIRROS[z]) { if (t.includes(b)) return z; }
-  }
-  return null;
-}
-
-function zonaAtual(){ return zonas.find(z => z.id === Number($("zona").value)); }
-
-function precoDe(z, v){
-  if (!z) return null;
-  if (v === "moto") return z.valor_moto;
-  return z.valor_fixo;
-}
-
 function atualizaPreco(){
-  const z = zonaAtual();
-  const semMoto = z && z.valor_moto == null;
-  $("motoErr").classList.toggle("hide", !(semMoto && veiculo === "moto"));
-  if (semMoto && veiculo === "moto") { veiculo = "carro"; pintaSeg("segVeiculo","v",veiculo); }
-  const p = precoDe(z, veiculo);
-  $("valor").textContent = p == null ? "R$ 0" : brl(p);
+  const v = parseFloat(($("cotValor").value || "").replace(",", "."));
+  $("valor").textContent = isFinite(v) && v > 0 ? brlc(v) : "R$ 0";
 }
 
 function pintaSeg(wrapId, attr, val){
@@ -448,18 +425,6 @@ function restante(iso){
 
 function linkRota(end){
   return "https://www.google.com/maps/dir/?api=1&destination=" + encodeURIComponent(end + ", São Paulo, SP");
-}
-
-async function carregaZonas(){
-  const { data, error } = await db.from("bairros").select("*").order("id");
-  if (error) { $("criaErr").textContent = "Erro ao carregar regiões."; $("criaErr").classList.remove("hide"); return; }
-  zonas = data;
-  $("zona").innerHTML = data.map(z =>
-    `<option value="${z.id}">${z.nome} · ${brl(z.valor_fixo)}${z.valor_moto!=null?" / moto "+brl(z.valor_moto):""}</option>`
-  ).join("");
-  $("rZona").innerHTML = $("zona").innerHTML;
-  rAtualizaValor();
-  atualizaPreco();
 }
 
 async function carregaPedidos(){
@@ -520,7 +485,7 @@ function pintaEntregador(ps){
       <div class="top"><span class="hora">${horaBR(p.horario_limite)}</span>
         <span class="pill ${r.cls==="late"?"bad":r.cls==="soon"?"warn":"accent"}">${r.txt}</span></div>
       <div class="end">${esc(p.endereco)}</div>
-      <div class="meta">${esc(p.destinatario)}${p.telefone?" · "+esc(p.telefone):""} · ${brl(p.valor_cobrado)} · ${p.veiculo.replace("_"," ")}</div>
+      <div class="meta">${esc(p.destinatario)}${p.telefone?" · "+esc(p.telefone):""} · ${brl(p.valor_cobrado)} · ${p.veiculo.replace("_"," ")}${p.cotacao_app?" · cotação "+esc(p.cotacao_app):""}</div>
       ${p.observacoes?`<div class="meta">${esc(p.observacoes)}</div>`:""}
       <div class="acts">
         <a href="${linkRota(p.endereco)}" target="_blank" rel="noopener"><button>${IC_ROTA}Abrir rota</button></a>
@@ -567,27 +532,30 @@ async function confirmaBaixa(){
 }
 
 async function criaPedido(){
-  const z = zonaAtual();
   const end = $("endereco").value.trim();
   const dest = $("destinatario").value.trim();
   const hora = $("limite").value;
-  if (!end || !dest || !hora || !z) {
-    $("criaErr").textContent = "Preencha endereço, quem recebe e o horário."; $("criaErr").classList.remove("hide"); return;
-  }
+  const app = $("cotApp").value.trim();
+  const valor = parseFloat($("cotValor").value.replace(",", "."));
+  const erro = t => { $("criaErr").textContent = t; $("criaErr").classList.remove("hide"); };
+  if (!end || !dest || !hora) return erro("Preencha endereço, quem recebe e o horário.");
+  if (!app) return erro("Informe em qual aplicativo fez a cotação.");
+  if (!isFinite(valor) || valor <= 0) return erro("Informe o valor da cotação.");
   const d = new Date(); const [h,m] = hora.split(":");
   d.setHours(Number(h), Number(m), 0, 0);
   if (d < new Date()) d.setDate(d.getDate() + 1);
 
   const r = await db.from("pedidos").insert({
-    endereco: end, bairro_id: z.id, destinatario: dest,
+    endereco: end, destinatario: dest,
     telefone: $("telefone").value.trim() || null,
     horario_limite: d.toISOString(), veiculo,
-    valor_cobrado: precoDe(z, veiculo),
+    valor_cobrado: valor, cotacao_app: app,
     observacoes: $("obs").value.trim() || null
   });
-  if (r.error) { $("criaErr").textContent = "Erro ao criar. Tente de novo."; $("criaErr").classList.remove("hide"); return; }
+  if (r.error) return erro("Erro ao criar. Tente de novo.");
   $("endereco").value = ""; $("destinatario").value = ""; $("telefone").value = "";
-  $("limite").value = ""; $("obs").value = "";
+  $("limite").value = ""; $("obs").value = ""; $("cotValor").value = "";
+  atualizaPreco();
   $("criaErr").classList.add("hide");
   trocaAba("painel"); carregaPedidos();
 }
@@ -607,11 +575,9 @@ function entra(p){
   if (p === "loja") {
     $("papel").textContent = "Loja · Palácio das Plumas";
     $("telaLoja").classList.remove("hide");
-    carregaZonas();
   } else {
     $("papel").textContent = "Entregador";
     $("telaEntregador").classList.remove("hide");
-    carregaZonas();
   }
   carregaPedidos();
   timer = setInterval(carregaPedidos, 30000);
@@ -628,11 +594,7 @@ $("pin").onkeydown = e => { if (e.key === "Enter") $("btnEntrar").click(); };
 
 $("btnSair").onclick = () => { sessionStorage.removeItem("papel"); location.reload(); };
 
-$("endereco").oninput = () => {
-  const z = detectaZona($("endereco").value);
-  if (z) { $("zona").value = z; atualizaPreco(); }
-};
-$("zona").onchange = atualizaPreco;
+$("cotValor").oninput = atualizaPreco;
 
 document.querySelectorAll("#segVeiculo button").forEach(b => {
   b.onclick = () => { veiculo = b.dataset.v; pintaSeg("segVeiculo","v",veiculo); atualizaPreco(); };
@@ -813,56 +775,40 @@ $("relCopiar").onclick = async () => {
   }
 };
 let rVeic = "carro", rCont = 0;
-function rZonaAtual(){ return zonas.find(z => z.id === Number($("rZona").value)); }
-function rAtualizaValor(){
-  const z = rZonaAtual(); if (!z) return;
-  $("rErr").classList.add("hide");
-  if (rVeic === "moto" && z.valor_moto == null) {
-    rVeic = "carro"; pintaSeg("segRetro", "rv", rVeic);
-    $("rErr").textContent = "Essa região só atende de carro."; $("rErr").classList.remove("hide");
-  }
-  const p = rVeic === "moto" ? z.valor_moto : z.valor_fixo;
-  $("rValor").value = String(p).replace(".", ",");
-}
 function abreRetro(){
   const iso = isoDia(new Date());
   $("rData").value = iso; $("rData").max = iso; $("rHora").value = "12:00";
-  $("rEnd").value = ""; $("rRecebeu").value = "";
+  $("rEnd").value = ""; $("rRecebeu").value = ""; $("rValor").value = "";
   rCont = 0; $("rOk").classList.add("hide"); $("rErr").classList.add("hide");
-  rAtualizaValor();
   $("modalRetro").classList.remove("hide");
 }
 async function salvaRetro(){
   const end = $("rEnd").value.trim(), quem = $("rRecebeu").value.trim();
   const valor = parseFloat($("rValor").value.replace(",", "."));
-  const z = rZonaAtual();
   const erro = t => { $("rOk").classList.add("hide"); $("rErr").textContent = t; $("rErr").classList.remove("hide"); };
   if (!$("rData").value) return erro("Escolha o dia.");
   if (!end || !quem) return erro("Preencha o endereço e quem recebeu.");
-  if (!z) return erro("Escolha a região.");
   if (!isFinite(valor) || valor <= 0) return erro("Informe o valor.");
   const quando = new Date($("rData").value + "T" + ($("rHora").value || "12:00") + ":00");
   if (quando.getTime() > Date.now() + 5*60000) return erro("Esse horário ainda não chegou.");
   const { error } = await db.rpc("registrar_entrega_feita", {
-    p_endereco: end, p_bairro: z.id, p_recebedor: quem,
-    p_quando: quando.toISOString(), p_veiculo: rVeic, p_valor: valor
+    p_endereco: end, p_recebedor: quem, p_quando: quando.toISOString(),
+    p_veiculo: rVeic, p_valor: valor, p_app: $("rApp").value.trim() || null
   });
   if (error) return erro("Não foi possível salvar. Tente de novo.");
   rCont++;
   $("rErr").classList.add("hide");
   $("rOk").textContent = rCont === 1 ? "Registrada. Pode adicionar outra." : rCont + " registradas. Pode adicionar outra.";
   $("rOk").classList.remove("hide");
-  $("rEnd").value = ""; $("rRecebeu").value = "";
+  $("rEnd").value = ""; $("rRecebeu").value = ""; $("rValor").value = "";
   carregaPedidos();
 }
 
 $("btnRetro").onclick = abreRetro;
 $("rFechar").onclick = () => $("modalRetro").classList.add("hide");
 $("rSalvar").onclick = salvaRetro;
-$("rZona").onchange = rAtualizaValor;
-$("rEnd").oninput = () => { const z = detectaZona($("rEnd").value); if (z && zonas.some(x => x.id === z)) { $("rZona").value = z; rAtualizaValor(); } };
 document.querySelectorAll("#segRetro button").forEach(b => {
-  b.onclick = () => { rVeic = b.dataset.rv; pintaSeg("segRetro", "rv", rVeic); rAtualizaValor(); };
+  b.onclick = () => { rVeic = b.dataset.rv; pintaSeg("segRetro", "rv", rVeic); };
 });
 $("relSolicitar").onclick = solicitaPagamento;
 
