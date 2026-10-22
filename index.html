@@ -169,6 +169,7 @@ button.small{width:auto;padding:9px 16px;font-size:14px;border-radius:12px}
       <div class="sub" id="papel">Palácio das Plumas</div>
     </div>
   </div>
+  <button class="ghost small hide" id="btnAjustes">Mínimos</button>
   <button class="ghost small" id="btnSair">Sair</button>
 </header>
 
@@ -201,9 +202,14 @@ button.small{width:auto;padding:9px 16px;font-size:14px;border-radius:12px}
   <div id="viewNovo">
     <div class="card">
       <div class="sec">Destino</div>
-      <div class="field" style="margin-bottom:0">
+      <div class="field">
         <label for="endereco">Endereço completo</label>
         <input id="endereco" autocomplete="off" placeholder="Rua, número, bairro">
+      </div>
+      <div class="field" style="margin-bottom:0">
+        <label for="zona">Região</label>
+        <select id="zona"></select>
+        <div class="hint">Identificada pelo bairro. Confira antes de criar.</div>
       </div>
 
       <div class="sec">Recebimento</div>
@@ -228,6 +234,7 @@ button.small{width:auto;padding:9px 16px;font-size:14px;border-radius:12px}
         <button data-v="moto" aria-pressed="false">Moto</button>
         <button data-v="tanto_faz" aria-pressed="true">Tanto faz</button>
       </div>
+      <div class="err hide" id="motoErr">Essa região só atende de carro.</div>
       <div class="sec">Cotação</div>
       <div class="field">
         <label for="cotApp">Aplicativo da cotação</label>
@@ -249,6 +256,7 @@ button.small{width:auto;padding:9px 16px;font-size:14px;border-radius:12px}
         <span>Valor da entrega</span>
         <b id="valor">R$ 0</b>
       </div>
+      <div class="hint hide" id="valorNota" style="text-align:right;margin-top:8px"></div>
     </div>
     <button class="primary" id="btnCriar">Criar pedido</button>
     <div class="err hide" id="criaErr"></div>
@@ -300,6 +308,20 @@ button.small{width:auto;padding:9px 16px;font-size:14px;border-radius:12px}
 </section>
 
 <div class="foot" id="rodape"></div>
+</div>
+
+<div class="modal hide" id="modalAjustes">
+  <div class="card">
+    <h2>Valores mínimos</h2>
+    <p class="sub" style="margin:-4px 0 12px">Nenhuma entrega é cobrada abaixo destes valores, mesmo que a cotação da loja seja menor.</p>
+    <div id="listaMin"></div>
+    <div class="err hide" id="minErr"></div>
+    <div class="sub hide" id="minOk" style="margin:12px 0;color:var(--ok)">Valores salvos.</div>
+    <div class="row" style="margin-top:16px">
+      <button class="ghost" id="minFechar">Fechar</button>
+      <button class="primary" id="minSalvar">Salvar</button>
+    </div>
+  </div>
 </div>
 
 <div class="modal hide" id="modalRetro">
@@ -394,15 +416,57 @@ const IC_OK = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" strok
 
 const SENHAS = { loja: "plumas25", entregador: "rota25" };
 
+const BAIRROS = {
+  1:["centro","se","sé","republica","república","bela vista","bixiga","liberdade","consolacao","consolação","bom retiro","santa cecilia","santa cecília","campos eliseos","campos elíseos","luz","paraiso","paraíso","aclimacao","aclimação","vila mariana","cambuci","vila monumento","higienopolis","higienópolis","jardins","jardim paulista","bela vista","glicerio","glicério","pari","bras","brás","canindé","caninde"],
+  2:["pinheiros","vila madalena","perdizes","lapa","pompeia","pompéia","barra funda","sumare","sumaré","itaim bibi","moema","vila olimpia","vila olímpia","brooklin","campo belo","santana","vila guilherme","casa verde","santa teresinha","butanta","butantã","vila leopoldina","alto de pinheiros","indianopolis","indianópolis","saude","saúde","ipiranga"],
+  3:["mooca","tatuape","tatuapé","belenzinho","agua rasa","água rasa","vila prudente","sao lucas","são lucas","jabaquara","santo amaro","vila andrade","morumbi","socorro","vila formosa","penha","vila maria","tucuruvi","mandaqui","freguesia do o","freguesia do ó","pirituba","interlagos","cidade ademar","sacoma","sacomã","chacara klabin","chácara klabin","carrao","carrão","aricanduva"],
+  4:["sapopemba","jardim sapopemba","itaquera","sao mateus","são mateus","cidade tiradentes","guaianases","itaim paulista","sao miguel","são miguel","ermelino matarazzo","parque edu chaves","edu chaves","jacana","jaçanã","brasilandia","brasilândia","perus","jaragua","jaraguá","capao redondo","capão redondo","mboi mirim","mbói mirim","grajau","grajaú","parelheiros","cidade dutra","campo limpo","jardim angela","jardim ângela","parque sao lucas","parque são lucas","vila jacui","vila jacuí","cangaiba","cangaíba","itaquaquecetuba"],
+  5:["cotia","granja viana","caucaia do alto"]
+};
+
 let papel = null, zonas = [], veiculo = "tanto_faz", pedidoAtual = null, timer = null;
 let resultado = "concluida", veiculoUsado = "carro";
 const $ = id => document.getElementById(id);
 
 function brl(n){ return "R$ " + Number(n).toLocaleString("pt-BR",{minimumFractionDigits:0,maximumFractionDigits:2}); }
 
+function detectaZona(txt){
+  const t = (txt||"").toLowerCase();
+  for (const z of [5,4,3,2,1]) {
+    for (const b of BAIRROS[z]) { if (t.includes(b)) return z; }
+  }
+  return null;
+}
+
+function zonaAtual(){ return zonas.find(z => z.id === Number($("zona").value)); }
+function minimoDe(z, v){ if (!z) return null; return v === "moto" ? z.valor_moto : z.valor_fixo; }
+function calcValor(){
+  const q = parseFloat(($("cotValor").value || "").replace(",", "."));
+  const min = minimoDe(zonaAtual(), veiculo);
+  const valido = isFinite(q) && q > 0;
+  return { q, min, final: valido ? Math.max(q, min || 0) : null, aplicado: valido && min != null && q < min };
+}
 function atualizaPreco(){
-  const v = parseFloat(($("cotValor").value || "").replace(",", "."));
-  $("valor").textContent = isFinite(v) && v > 0 ? brlc(v) : "R$ 0";
+  const z = zonaAtual();
+  const semMoto = !!z && z.valor_moto == null;
+  if (semMoto && veiculo === "moto") { veiculo = "carro"; pintaSeg("segVeiculo", "v", veiculo); $("motoErr").classList.remove("hide"); }
+  else if (!semMoto) { $("motoErr").classList.add("hide"); }
+  const c = calcValor();
+  $("valor").textContent = c.final == null ? "R$ 0" : brlc(c.final);
+  if (c.aplicado) {
+    $("valorNota").textContent = "Valor mínimo desta região aplicado. Cotação informada: " + brlc(c.q) + ".";
+    $("valorNota").classList.remove("hide");
+  } else { $("valorNota").classList.add("hide"); }
+}
+
+async function carregaZonas(){
+  const { data, error } = await db.from("bairros").select("*").order("id");
+  if (error) return;
+  zonas = data;
+  const antes = $("zona").value;
+  $("zona").innerHTML = '<option value="">Escolha a região</option>' + data.map(z => `<option value="${z.id}">${esc(z.nome)}</option>`).join("");
+  if (antes) $("zona").value = antes;
+  atualizaPreco();
 }
 
 function pintaSeg(wrapId, attr, val){
@@ -536,25 +600,27 @@ async function criaPedido(){
   const dest = $("destinatario").value.trim();
   const hora = $("limite").value;
   const app = $("cotApp").value.trim();
-  const valor = parseFloat($("cotValor").value.replace(",", "."));
+  const z = zonaAtual();
+  const c = calcValor();
   const erro = t => { $("criaErr").textContent = t; $("criaErr").classList.remove("hide"); };
   if (!end || !dest || !hora) return erro("Preencha endereço, quem recebe e o horário.");
+  if (!z) return erro("Escolha a região da entrega.");
   if (!app) return erro("Informe em qual aplicativo fez a cotação.");
-  if (!isFinite(valor) || valor <= 0) return erro("Informe o valor da cotação.");
+  if (c.final == null) return erro("Informe o valor da cotação.");
   const d = new Date(); const [h,m] = hora.split(":");
   d.setHours(Number(h), Number(m), 0, 0);
   if (d < new Date()) d.setDate(d.getDate() + 1);
 
   const r = await db.from("pedidos").insert({
-    endereco: end, destinatario: dest,
+    endereco: end, bairro_id: z.id, destinatario: dest,
     telefone: $("telefone").value.trim() || null,
     horario_limite: d.toISOString(), veiculo,
-    valor_cobrado: valor, cotacao_app: app,
+    valor_cobrado: c.final, cotacao_app: app, cotacao_valor: c.q,
     observacoes: $("obs").value.trim() || null
   });
   if (r.error) return erro("Erro ao criar. Tente de novo.");
   $("endereco").value = ""; $("destinatario").value = ""; $("telefone").value = "";
-  $("limite").value = ""; $("obs").value = ""; $("cotValor").value = "";
+  $("limite").value = ""; $("obs").value = ""; $("cotValor").value = ""; $("zona").value = "";
   atualizaPreco();
   $("criaErr").classList.add("hide");
   trocaAba("painel"); carregaPedidos();
@@ -575,9 +641,12 @@ function entra(p){
   if (p === "loja") {
     $("papel").textContent = "Loja · Palácio das Plumas";
     $("telaLoja").classList.remove("hide");
+    carregaZonas();
   } else {
     $("papel").textContent = "Entregador";
     $("telaEntregador").classList.remove("hide");
+    $("btnAjustes").classList.remove("hide");
+    carregaZonas();
   }
   carregaPedidos();
   timer = setInterval(carregaPedidos, 30000);
@@ -595,6 +664,11 @@ $("pin").onkeydown = e => { if (e.key === "Enter") $("btnEntrar").click(); };
 $("btnSair").onclick = () => { sessionStorage.removeItem("papel"); location.reload(); };
 
 $("cotValor").oninput = atualizaPreco;
+$("endereco").oninput = () => {
+  const z = detectaZona($("endereco").value);
+  if (z && zonas.some(x => x.id === z)) { $("zona").value = String(z); atualizaPreco(); }
+};
+$("zona").onchange = atualizaPreco;
 
 document.querySelectorAll("#segVeiculo button").forEach(b => {
   b.onclick = () => { veiculo = b.dataset.v; pintaSeg("segVeiculo","v",veiculo); atualizaPreco(); };
@@ -811,6 +885,37 @@ document.querySelectorAll("#segRetro button").forEach(b => {
   b.onclick = () => { rVeic = b.dataset.rv; pintaSeg("segRetro", "rv", rVeic); };
 });
 $("relSolicitar").onclick = solicitaPagamento;
+
+function abreAjustes(){
+  $("minErr").classList.add("hide"); $("minOk").classList.add("hide");
+  const f = n => n == null ? "" : String(n).replace(".", ",");
+  $("listaMin").innerHTML = zonas.map(z => `<div style="padding:12px 0;border-bottom:1px solid var(--line)">
+    <div style="font-weight:500;margin-bottom:8px">${esc(z.nome)}</div>
+    <div class="row">
+      <div><label>Carro</label><input data-min="c" data-id="${z.id}" inputmode="decimal" value="${f(z.valor_fixo)}"></div>
+      <div><label>Moto</label><input data-min="m" data-id="${z.id}" inputmode="decimal" value="${f(z.valor_moto)}" placeholder="só carro"></div>
+    </div></div>`).join("");
+  $("modalAjustes").classList.remove("hide");
+}
+async function salvaAjustes(){
+  const erro = t => { $("minOk").classList.add("hide"); $("minErr").textContent = t; $("minErr").classList.remove("hide"); };
+  const lote = [];
+  for (const z of zonas) {
+    const c = parseFloat(document.querySelector(`[data-min="c"][data-id="${z.id}"]`).value.replace(",", "."));
+    const mTxt = document.querySelector(`[data-min="m"][data-id="${z.id}"]`).value.trim();
+    const m = mTxt === "" ? null : parseFloat(mTxt.replace(",", "."));
+    if (!isFinite(c) || c <= 0) return erro("Informe o valor do carro em " + z.nome + ".");
+    if (m !== null && (!isFinite(m) || m <= 0)) return erro("Valor da moto inválido em " + z.nome + ".");
+    lote.push({ id: z.id, valor_fixo: c, valor_moto: m });
+  }
+  const rs = await Promise.all(lote.map(l => db.from("bairros").update({ valor_fixo: l.valor_fixo, valor_moto: l.valor_moto }).eq("id", l.id)));
+  if (rs.some(r => r && r.error)) return erro("Não foi possível salvar. Tente de novo.");
+  $("minErr").classList.add("hide"); $("minOk").classList.remove("hide");
+  await carregaZonas();
+}
+$("btnAjustes").onclick = abreAjustes;
+$("minFechar").onclick = () => $("modalAjustes").classList.add("hide");
+$("minSalvar").onclick = salvaAjustes;
 
 $("verSenha").onchange = e => { $("pin").type = e.target.checked ? "text" : "password"; };
 
