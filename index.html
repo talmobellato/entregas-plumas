@@ -54,7 +54,7 @@ header.bar{
   background:color-mix(in srgb,var(--bg) 88%,transparent);
   -webkit-backdrop-filter:saturate(1.4) blur(12px);backdrop-filter:saturate(1.4) blur(12px);
   border-bottom:1px solid var(--line);
-  padding:12px 18px;display:flex;align-items:center;gap:12px;
+  padding:12px 18px 10px;display:flex;flex-wrap:wrap;align-items:center;gap:10px 12px;
 }
 header.bar .brand{display:flex;align-items:center;gap:12px;flex:1;min-width:0}
 header.bar h1{font-size:17px}
@@ -156,13 +156,52 @@ button.small{width:auto;padding:9px 16px;font-size:14px;border-radius:12px}
 .acts2{display:flex;gap:8px;margin-top:12px}
 .sug{border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin-top:8px;cursor:pointer;background:var(--card)}
 .sug:active{background:var(--accent-bg)}
+header.bar .chips{flex:0 0 100%;display:flex;gap:8px}
+.chips button{flex:1;width:auto;padding:9px 6px;font-size:14px;border-radius:999px;background:var(--track);border:none;color:var(--ink2)}
+.sec-app{scroll-margin-top:140px}
+.stitle{font-size:21px;font-weight:600;margin:36px 0 14px;letter-spacing:-.01em}
+#secNovo .stitle{margin-top:8px}
+.stats3{grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.stats3 .stat{padding:12px}
+.stats3 .stat b{font-size:26px}
+.stat.okk b{color:var(--ok)}
+button:disabled{opacity:.55;cursor:not-allowed}
+.mark{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:50%;flex:none;font-weight:700}
+.mark.ok{background:var(--ok);color:#fff}
+.mark.wait{border:2px solid var(--line2)}
+.mark.bad{background:var(--bad);color:#fff}
+.item .top .lhs{display:flex;align-items:center;gap:10px;min-width:0}
+.item .recebido{font-size:15px;color:var(--ok);font-weight:500;margin-top:6px}
+details.dia{margin-bottom:6px}
+details.dia>summary{list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding:12px 2px;border-bottom:1px solid var(--line2);margin-bottom:12px}
+details.dia>summary::-webkit-details-marker{display:none}
+details.dia>summary::before{content:"\25B8";color:var(--ink3);margin-right:8px}
+details.dia[open]>summary::before{content:"\25BE"}
+details.dia>summary b{flex:1;text-transform:capitalize}
+.dia-h-plain{margin:6px 0 12px;color:var(--ink2)}
+.total-lbl{font-size:14px;color:var(--ink2);margin-top:14px}
+.total-val{font-size:40px;font-weight:600;letter-spacing:-.02em;line-height:1.15}
+.qbs{margin-top:16px;border-top:1px solid var(--line)}
+.qb{display:flex;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid var(--line);font-size:15px}
+.qb span:first-child{text-transform:capitalize}
+#docImpressao{display:none}
+@media (prefers-color-scheme: dark){ .mark.ok,.mark.bad{color:#0b1b12} }
 @media print{
   html,body{background:#fff!important;color:#000!important}
-  body::before,header.bar,.tabs,.noprint,#telaLogin,#telaLoja,#telaEntregador,.foot,.modal{display:none!important}
-  .wrap{max-width:none;padding:0}
-  #relatorioArea{border:none!important;padding:0!important;background:#fff!important;box-shadow:none!important}
-  #relatorioArea,#relatorioArea *{color:#000!important;background:transparent!important;border-color:#888!important}
-  #relatorioArea .stat{border:1px solid #888!important}
+  header.bar,.wrap,.modal,body::before{display:none!important}
+  #docImpressao{display:block!important;font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#000;padding:0}
+  #docImpressao .doc-head{display:flex;align-items:center;gap:14px;margin-bottom:14px}
+  #docImpressao .doc-head img{width:56px;height:56px;border-radius:50%}
+  #docImpressao h1{font-size:18px;margin:0 0 2px}
+  #docImpressao table{width:100%;border-collapse:collapse}
+  #docImpressao th,#docImpressao td{border-bottom:1px solid #999;padding:6px 4px;text-align:left;vertical-align:top}
+  #docImpressao th{border-bottom:2px solid #000}
+  #docImpressao .r{text-align:right;white-space:nowrap}
+  #docImpressao .sub-row td{font-weight:700;background:#f0f0f0}
+  #docImpressao .tot td{font-weight:700;font-size:14px;border-top:2px solid #000;border-bottom:none}
+  #docImpressao p{margin:10px 0}
+  #docImpressao .doc-foot{font-size:10px;color:#444}
+  tr{page-break-inside:avoid}
 }
 </style>
 </head>
@@ -178,6 +217,12 @@ button.small{width:auto;padding:9px 16px;font-size:14px;border-radius:12px}
   </div>
   <button class="ghost small hide" id="btnAjustes">Mínimos</button>
   <button class="ghost small" id="btnSair">Sair</button>
+  <nav class="chips" aria-label="Seções">
+    <button data-go="secNovo" data-role="loja">Solicitar</button>
+    <button data-go="secAbertas" data-role="entregador">Em aberto</button>
+    <button data-go="secHist">Histórico</button>
+    <button data-go="secPag">Pagamento</button>
+  </nav>
 </header>
 
 <div class="wrap">
@@ -199,14 +244,10 @@ button.small{width:auto;padding:9px 16px;font-size:14px;border-radius:12px}
   </div>
 </section>
 
-<section id="telaLoja" class="hide">
-  <div class="tabs">
-    <button id="tabNovo" aria-pressed="true">Novo pedido</button>
-    <button id="tabPainel" aria-pressed="false">Painel do dia</button>
-    <button id="tabRelL" aria-pressed="false">Relatório</button>
-  </div>
+<section id="telaApp" class="hide">
 
-  <div id="viewNovo">
+  <section class="sec-app" id="secNovo" data-role="loja">
+    <h2 class="stitle">Solicitar corrida</h2>
     <div class="card">
       <div class="field" style="margin-bottom:0">
         <label for="busca">Repetir um pedido anterior</label>
@@ -278,68 +319,53 @@ button.small{width:auto;padding:9px 16px;font-size:14px;border-radius:12px}
     </div>
     <button class="primary" id="btnCriar">Criar pedido</button>
     <div class="err hide" id="criaErr"></div>
-  </div>
-  <div id="viewPainel" class="hide">
-    <div class="dianav" data-nav>
-      <button data-dia="-1" aria-label="Dia anterior">&lsaquo;</button>
-      <div class="dialabel"></div>
-      <button data-dia="1" aria-label="Próximo dia">&rsaquo;</button>
-      <button class="hojebtn" data-dia="0">Hoje</button>
+    <div class="sub hide" id="criaOk" style="color:var(--ok);margin-top:10px;text-align:center"></div>
+  </section>
+
+  <section class="sec-app" id="secAbertas" data-role="entregador">
+    <h2 class="stitle">Em aberto</h2>
+    <div id="listaAbertas"></div>
+  </section>
+
+  <section class="sec-app" id="secHist">
+    <h2 class="stitle">Histórico</h2>
+    <div class="seg" id="segPeriodo" style="margin-bottom:12px">
+      <button data-p="semana" aria-pressed="true">Semana</button>
+      <button data-p="mes" aria-pressed="false">Mês</button>
     </div>
-    <div class="stats">
+    <div class="dianav">
+      <button id="relAnt" aria-label="Período anterior">&lsaquo;</button>
+      <div class="dialabel" id="relLabel"></div>
+      <button id="relProx" aria-label="Próximo período">&rsaquo;</button>
+      <button class="hojebtn" id="relHoje">Hoje</button>
+    </div>
+    <div class="stats stats3">
       <div class="stat"><span>Pendentes</span><b id="cPend">0</b></div>
-      <div class="stat"><span>Em rota</span><b id="cRota">0</b></div>
-      <div class="stat"><span>Concluídas</span><b id="cFeito">0</b></div>
+      <div class="stat okk"><span>Entregues</span><b id="cFeito">0</b></div>
       <div class="stat"><span>Com problema</span><b id="cProb">0</b></div>
     </div>
-    <button class="ghost" id="btnRetroL" style="margin-bottom:16px">+ Registrar entrega já feita</button>
-    <div id="listaLoja"></div>
-  </div>
-</section>
+    <button class="ghost" id="btnRetro" style="margin-bottom:14px">+ Registrar entrega já feita</button>
+    <div id="listaHist"></div>
+  </section>
 
-<section id="telaEntregador" class="hide">
-  <div class="tabs">
-    <button id="tabAtivas" aria-pressed="true">A entregar</button>
-    <button id="tabFeitas" aria-pressed="false">Finalizadas</button>
-    <button id="tabRelE" aria-pressed="false">Relatório</button>
-  </div>
-  <div class="dianav hide" id="navFeitas" data-nav>
-      <button data-dia="-1" aria-label="Dia anterior">&lsaquo;</button>
-      <div class="dialabel"></div>
-      <button data-dia="1" aria-label="Próximo dia">&rsaquo;</button>
-      <button class="hojebtn" data-dia="0">Hoje</button>
-    </div>
-  <button class="ghost" id="btnRetro" style="margin-bottom:16px">+ Registrar entrega já feita</button>
-  <div id="listaEntregador"></div>
-</section>
-
-<section id="telaRelatorio" class="hide">
-  <div class="noprint">
-    <div class="seg" id="segPeriodo" style="margin-bottom:12px">
-      <button data-p="dia" aria-pressed="false">Dia</button>
-      <button data-p="semana" aria-pressed="true">Semana</button>
-    </div>
-    <div class="row" style="align-items:center;margin-bottom:14px">
-      <button id="relAnt" style="flex:0 0 56px" aria-label="Período anterior">&lsaquo;</button>
-      <div id="relLabel" style="flex:1;text-align:center;font-weight:500"></div>
-      <button id="relProx" style="flex:0 0 56px" aria-label="Próximo período">&rsaquo;</button>
-    </div>
-  </div>
-  <div id="relPag" class="noprint"></div>
-  <div id="relatorioArea" class="card"><div id="relCorpo"></div></div>
-  <div class="noprint">
+  <section class="sec-app" id="secPag">
+    <h2 class="stitle">Pagamento</h2>
+    <div id="relPag"></div>
+    <div class="card" id="relResumo"></div>
     <button class="primary hide" id="relSolicitar">Solicitar pagamento</button>
-    <button id="relImprimir" style="margin-top:10px">Imprimir ou salvar PDF</button>
     <div class="row" style="margin-top:10px">
+      <button id="relImprimir">Imprimir ou salvar PDF</button>
       <button id="relCopiar">Copiar resumo</button>
-      <button class="ghost" id="relVoltar">Voltar</button>
     </div>
     <div class="sub hide" id="relMsg" style="margin-top:10px;text-align:center"></div>
-  </div>
+  </section>
+
 </section>
 
 <div class="foot" id="rodape"></div>
 </div>
+
+<div id="docImpressao"></div>
 
 <div class="modal hide" id="modalEdit">
   <div class="card">
@@ -479,6 +505,7 @@ const db = supabase.createClient(SB_URL, SB_KEY);
 const LOGO = "data:image/webp;base64,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";
 document.querySelectorAll("img[data-logo]").forEach(i => { i.src = LOGO; });
 const IC_ROTA = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l18-8-8 18-2-8-8-2z"/></svg>';
+const IC_CHECK = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg>';
 const IC_OK = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg>';
 
 const SENHAS = { loja: "plumas25", entregador: "rota25" };
@@ -492,7 +519,10 @@ const BAIRROS = {
 };
 
 let papel = null, zonas = [], veiculo = "tanto_faz", pedidoAtual = null, timer = null;
-let diaSel = new Date(), ultimos = [], historico = [], sugAtual = [], edP = null, eVeic = "carro";
+let ultimos = [], abertas = [], periodoDados = [], atrasadosAntes = [], pagAbertos = [], historico = [], sugAtual = [], edP = null, eVeic = "carro";
+const diasMarcados = new Map();
+const rolar = el => el.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
+const valorDe = p => Number(p.valor_cobrado || 0);
 let resultado = "concluida", veiculoUsado = "carro";
 const $ = id => document.getElementById(id);
 
@@ -549,10 +579,10 @@ function horaBR(iso){
 
 function restante(iso){
   const min = Math.round((new Date(iso) - new Date())/60000);
-  if (min < 0) return { txt:"atrasada " + Math.abs(min) + " min", cls:"late" };
-  if (min <= 45) return { txt:"faltam " + min + " min", cls:"soon" };
-  if (min < 120) return { txt:"faltam " + min + " min", cls:"" };
-  return { txt:"faltam " + Math.floor(min/60) + "h", cls:"" };
+  const fmt = m => m >= 2880 ? Math.floor(m/1440) + " dias" : m >= 120 ? Math.floor(m/60) + "h" : m + " min";
+  if (min < 0) return { txt: "atrasada " + fmt(-min), cls: "late" };
+  if (min <= 45) return { txt: "faltam " + min + " min", cls: "soon" };
+  return { txt: "faltam " + fmt(min), cls: "" };
 }
 
 function linkRota(end){
@@ -560,92 +590,96 @@ function linkRota(end){
 }
 
 async function carregaPedidos(){
-  const ini = dia0(diaSel), fim = new Date(ini); fim.setDate(fim.getDate() + 1);
+  const [a,b] = periodoRel();
+  $("relLabel").textContent = rotuloPeriodo(a,b);
   const sel = "*, baixas(*)", abertos = ["pendente", "em_rota"];
-  const ativas = papel === "entregador" && $("tabAtivas").getAttribute("aria-pressed") === "true";
-  let data = [];
-  if (ativas) {
-    const r = await db.from("pedidos").select(sel).in("status", abertos).order("horario_limite");
-    if (r.error) return;
-    data = r.data;
-  } else {
-    const r = await db.from("pedidos").select(sel)
-      .gte("horario_limite", ini.toISOString()).lt("horario_limite", fim.toISOString()).order("horario_limite");
-    if (r.error) return;
-    data = r.data;
-    if (papel === "loja" && ini.getTime() === dia0(new Date()).getTime()) {
-      const o = await db.from("pedidos").select(sel).in("status", abertos).lt("horario_limite", ini.toISOString()).order("horario_limite");
-      if (!o.error) data = o.data.concat(data);
-    }
-  }
-  ultimos = data;
-  if (papel === "loja") pintaLoja(data); else pintaEntregador(data);
+  const incluiHoje = Date.now() >= a.getTime() && Date.now() < b.getTime();
+  const vazio = Promise.resolve({ data: [] });
+  const [rp, rg, ro, rab] = await Promise.all([
+    db.from("pedidos").select(sel).gte("horario_limite", a.toISOString()).lt("horario_limite", b.toISOString()).order("horario_limite"),
+    db.from("pagamentos").select("*").eq("status", "solicitado").order("solicitado_em"),
+    incluiHoje && papel === "loja" ? db.from("pedidos").select(sel).in("status", abertos).lt("horario_limite", a.toISOString()).order("horario_limite") : vazio,
+    papel === "entregador" ? db.from("pedidos").select(sel).in("status", abertos).order("horario_limite") : vazio
+  ]);
+  if (rp.error) return;
+  periodoDados = rp.data || [];
+  pagAbertos = (rg && rg.data) || [];
+  atrasadosAntes = (ro && ro.data) || [];
+  abertas = (rab && rab.data) || [];
+  ultimos = atrasadosAntes.concat(periodoDados, abertas);
+  pintaAbertas(); pintaHist(); pintaResumo();
 }
 
-function pintaLoja(ps){
-  const c = {pendente:0, em_rota:0, concluida:0, com_problema:0};
-  ps.forEach(p => c[p.status]++);
-  $("cPend").textContent = c.pendente; $("cRota").textContent = c.em_rota;
-  $("cFeito").textContent = c.concluida; $("cProb").textContent = c.com_problema;
-
-  if (!ps.length) { $("listaLoja").innerHTML = '<div class="empty">Nenhum pedido neste dia.</div>'; return; }
-
-  $("listaLoja").innerHTML = ps.map(p => {
-    const b = p.baixas && p.baixas[0];
-    let cls = "", badge = "";
-    if (p.status === "concluida") { cls = "done"; badge = `<span class="pill ok">entregue</span>`; }
-    else if (p.status === "com_problema") { cls = "prob"; badge = `<span class="pill bad">${esc(b?b.motivo_problema:"problema")}</span>`; }
-    else { const r = restante(p.horario_limite); cls = r.cls;
-      badge = `<span class="pill ${r.cls==="late"?"bad":r.cls==="soon"?"warn":"accent"}">${p.status==="em_rota"?"em rota · ":""}${r.txt}</span>`; }
-    const extra = b && b.recebido_por ? ` · recebido por ${esc(b.recebido_por)}` : "";
-    return `<div class="item ${cls}">
-      <div class="top"><span class="hora">${horaBR(p.horario_limite)}</span>${badge}</div>
+function cardPedido(p, modo){
+  const b = p.baixas && p.baixas[0];
+  const feita = p.status === "concluida", prob = p.status === "com_problema";
+  const hoje = dia0(new Date()).getTime();
+  const outroDia = (modo === "aberta" || modo === "antes") && dia0(p.horario_limite).getTime() !== hoje;
+  let cls = "", marca = "", badge = "", hora = horaBR(p.horario_limite);
+  if (feita) {
+    cls = "done"; marca = `<span class="mark ok" role="img" aria-label="Entregue">${IC_CHECK}</span>`;
+    if (b) hora = horaBR(b.concluida_em);
+    badge = `<span class="pill ok">Entregue</span>`;
+  } else if (prob) {
+    cls = "prob"; marca = `<span class="mark bad" role="img" aria-label="Com problema">!</span>`;
+    badge = `<span class="pill bad">${esc(b ? b.motivo_problema : "problema")}</span>`;
+  } else {
+    const r = restante(p.horario_limite); cls = r.cls;
+    marca = `<span class="mark wait" role="img" aria-label="Aguardando entrega"></span>`;
+    badge = `<span class="pill ${r.cls === "late" ? "bad" : r.cls === "soon" ? "warn" : "accent"}">${p.status === "em_rota" ? "em rota · " : ""}${r.txt}</span>`;
+  }
+  const quando = outroDia ? ` <span class="sub">· ${esc(fmtData(new Date(p.horario_limite)))}</span>` : "";
+  const meta = esc(p.destinatario) + (p.telefone ? " · " + esc(p.telefone) : "") + " · " + brl(p.valor_cobrado) + " · " + esc(String(p.veiculo).replace("_", " ")) + (p.cotacao_app ? " · cotação " + esc(p.cotacao_app) : "");
+  let acts = "";
+  if (modo === "aberta") {
+    acts = `<div class="acts">
+        <a href="${linkRota(p.endereco)}" target="_blank" rel="noopener"><button>${IC_ROTA}Abrir rota</button></a>
+        <a href="#" data-baixa="${esc(p.id)}" data-end="${esc(p.endereco)}" data-dest="${esc(p.destinatario)}"><button class="ok">${IC_OK}Dar baixa</button></a>
+      </div>`;
+  }
+  const acts2 = `<div class="acts2"><button class="ghost small" data-edit="${esc(p.id)}">Editar</button>${papel === "loja" ? `<button class="ghost small" data-rep="${esc(p.id)}">Repetir</button>` : ""}</div>`;
+  return `<div class="item ${cls}">
+      <div class="top"><div class="lhs">${marca}<span class="hora">${hora}</span>${quando}</div>${badge}</div>
       <div class="end">${esc(p.endereco)}</div>
-      <div class="meta">${esc(p.destinatario)} · ${brl(p.valor_cobrado)} · ${p.veiculo.replace("_"," ")}${extra}</div>
-      <div class="acts2"><button class="ghost small" data-edit="${p.id}">Editar</button><button class="ghost small" data-rep="${p.id}">Repetir</button></div>
+      <div class="meta">${meta}</div>
+      ${feita && b && b.recebido_por ? `<div class="recebido">Recebido por ${esc(b.recebido_por)}</div>` : ""}
+      ${p.observacoes && p.observacoes !== "Registrada depois" ? `<div class="meta">${esc(p.observacoes)}</div>` : ""}
+      ${acts}${acts2}
     </div>`;
-  }).join("");
+}
+
+function rotuloDiaCurto(d){
+  const dif = Math.round((dia0(d) - dia0(new Date())) / 86400000);
+  const base = d.toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "2-digit" });
+  return dif === 0 ? "Hoje · " + base : dif === -1 ? "Ontem · " + base : base;
+}
+
+function pintaAbertas(){
+  if (papel !== "entregador") return;
+  $("listaAbertas").innerHTML = abertas.length ? abertas.map(p => cardPedido(p, "aberta")).join("") : '<div class="empty">Nenhuma entrega em aberto.</div>';
   ligaAcoes();
 }
 
-function pintaEntregador(ps){
-  const ativas = $("tabAtivas").getAttribute("aria-pressed") === "true";
-  const lista = ps.filter(p => ativas
-    ? (p.status === "pendente" || p.status === "em_rota")
-    : (p.status === "concluida" || p.status === "com_problema"));
-
-  if (!lista.length) { $("listaEntregador").innerHTML = `<div class="empty">${ativas?"Nenhuma entrega pendente.":"Nada finalizado neste dia."}</div>`; return; }
-
-  $("listaEntregador").innerHTML = lista.map(p => {
-    const b = p.baixas && p.baixas[0];
-    if (!ativas) {
-      const cls = p.status === "concluida" ? "done" : "prob";
-      const txt = p.status === "concluida" ? "recebido por " + (b?b.recebido_por:"-") : (b?b.motivo_problema:"problema");
-      return `<div class="item ${cls}">
-        <div class="top"><span class="hora">${horaBR(p.horario_limite)}</span><span class="pill ${p.status==="concluida"?"ok":"bad"}">${esc(txt)}</span></div>
-        <div class="end">${esc(p.endereco)}</div>
-        <div class="meta">${esc(p.destinatario)} · ${brl(p.valor_cobrado)}</div>
-        <div class="acts2"><button class="ghost small" data-edit="${p.id}">Editar</button></div>
-      </div>`;
-    }
-    const r = restante(p.horario_limite);
-    return `<div class="item ${r.cls}">
-      <div class="top"><span class="hora">${horaBR(p.horario_limite)}</span>
-        <span class="pill ${r.cls==="late"?"bad":r.cls==="soon"?"warn":"accent"}">${r.txt}</span></div>
-      <div class="end">${esc(p.endereco)}</div>
-      <div class="meta">${esc(p.destinatario)}${p.telefone?" · "+esc(p.telefone):""} · ${brl(p.valor_cobrado)} · ${p.veiculo.replace("_"," ")}${p.cotacao_app?" · cotação "+esc(p.cotacao_app):""}</div>
-      ${p.observacoes?`<div class="meta">${esc(p.observacoes)}</div>`:""}
-      <div class="acts">
-        <a href="${linkRota(p.endereco)}" target="_blank" rel="noopener"><button>${IC_ROTA}Abrir rota</button></a>
-        <a href="#" data-baixa="${p.id}" data-end="${esc(p.endereco)}" data-dest="${esc(p.destinatario)}"><button class="ok">${IC_OK}Dar baixa</button></a>
-      </div>
-      <div class="acts2"><button class="ghost small" data-edit="${p.id}">Editar</button></div>
-    </div>`;
-  }).join("");
-
-  document.querySelectorAll("[data-baixa]").forEach(a => {
-    a.onclick = e => { e.preventDefault(); abreBaixa(a.dataset.baixa, a.dataset.end, a.dataset.dest); };
+function pintaHist(){
+  const c = { pend: 0, feita: 0, prob: 0 };
+  periodoDados.forEach(p => { if (p.status === "concluida") c.feita++; else if (p.status === "com_problema") c.prob++; else c.pend++; });
+  $("cPend").textContent = c.pend; $("cFeito").textContent = c.feita; $("cProb").textContent = c.prob;
+  let h = "";
+  if (papel === "loja" && atrasadosAntes.length) {
+    h += '<div class="dia-h-plain"><b>Em aberto de dias anteriores</b></div>' + atrasadosAntes.map(p => cardPedido(p, "antes")).join("");
+  }
+  const grupos = new Map();
+  periodoDados.forEach(p => { const k = dia0(p.horario_limite).getTime(); if (!grupos.has(k)) grupos.set(k, []); grupos.get(k).push(p); });
+  [...grupos.keys()].sort((x, y) => y - x).forEach(k => {
+    const lista = grupos.get(k);
+    const sub = lista.filter(p => p.status === "concluida").reduce((s, p) => s + valorDe(p), 0);
+    const temAberto = lista.some(p => p.status === "pendente" || p.status === "em_rota");
+    const aberto = diasMarcados.has(k) ? diasMarcados.get(k) : (relModo === "semana" || temAberto);
+    h += `<details class="dia" data-k="${k}"${aberto ? " open" : ""}><summary><b>${esc(rotuloDiaCurto(new Date(k)))}</b><span class="sub">${lista.length} corrida(s) · ${brlc(sub)}</span></summary>${lista.map(p => cardPedido(p, "hist")).join("")}</details>`;
   });
+  if (!h) h = '<div class="empty">Nenhuma entrega neste período.</div>';
+  $("listaHist").innerHTML = h;
+  document.querySelectorAll("#listaHist details.dia").forEach(el => el.addEventListener("toggle", () => diasMarcados.set(Number(el.dataset.k), el.open)));
   ligaAcoes();
 }
 
@@ -696,7 +730,7 @@ async function criaPedido(){
   const dia = $("dataLimite").value;
   if (!dia) return erro("Escolha o dia.");
   const d = new Date(dia + "T" + hora + ":00");
-  if (d.getTime() < Date.now() - 30*60000) return erro("Esse horário já passou. Para dias anteriores, use Registrar entrega já feita, no Painel.");
+  if (d.getTime() < Date.now() - 30*60000) return erro("Esse horário já passou. Para dias anteriores, use Registrar entrega já feita, no Histórico.");
 
   const r = await db.from("pedidos").insert({
     endereco: end, bairro_id: z.id, destinatario: dest,
@@ -711,13 +745,11 @@ async function criaPedido(){
   iniciaForm(); carregaHistorico();
   atualizaPreco();
   $("criaErr").classList.add("hide");
-  trocaAba("painel"); carregaPedidos();
-}
-
-function trocaAba(qual){
-  const novo = qual === "novo";
-  $("tabNovo").setAttribute("aria-pressed", novo); $("tabPainel").setAttribute("aria-pressed", !novo);
-  $("viewNovo").classList.toggle("hide", !novo); $("viewPainel").classList.toggle("hide", novo);
+  $("criaOk").textContent = "Pedido criado.";
+  $("criaOk").classList.remove("hide");
+  setTimeout(() => $("criaOk").classList.add("hide"), 4000);
+  carregaPedidos();
+  rolar($("secHist"));
 }
 
 function entra(p){
@@ -726,20 +758,16 @@ function entra(p){
   $("telaLogin").classList.add("hide");
   $("btnSair").classList.remove("hide");
   document.querySelector("header.bar").classList.remove("hide");
-  if (p === "loja") {
-    $("papel").textContent = "Loja · Palácio das Plumas";
-    $("telaLoja").classList.remove("hide");
-    carregaZonas();
-    iniciaForm();
-    carregaHistorico();
-  } else {
-    $("papel").textContent = "Entregador";
-    $("telaEntregador").classList.remove("hide");
-    $("btnAjustes").classList.remove("hide");
-    carregaZonas();
-  }
+  $("telaApp").classList.remove("hide");
+  document.querySelectorAll("[data-role]").forEach(e => e.classList.toggle("hide", e.dataset.role !== p));
+  $("papel").textContent = p === "loja" ? "Loja · Palácio das Plumas" : "Entregador";
+  $("btnAjustes").classList.toggle("hide", p !== "entregador");
+  $("relSolicitar").classList.toggle("hide", p !== "entregador");
+  carregaZonas();
+  if (p === "loja") { iniciaForm(); carregaHistorico(); }
   carregaPedidos();
   timer = setInterval(carregaPedidos, 30000);
+  document.querySelectorAll("[data-go]").forEach(b => { b.onclick = () => rolar($(b.dataset.go)); });
 }
 
 $("btnEntrar").onclick = () => {
@@ -781,50 +809,40 @@ document.querySelectorAll("#segUsado button").forEach(b => {
 $("btnCriar").onclick = criaPedido;
 $("btnConfirmaBaixa").onclick = confirmaBaixa;
 $("btnCancelaBaixa").onclick = () => $("modalBaixa").classList.add("hide");
-$("tabNovo").onclick = () => trocaAba("novo");
-$("tabPainel").onclick = () => { trocaAba("painel"); carregaPedidos(); };
-$("tabAtivas").onclick = () => { $("tabAtivas").setAttribute("aria-pressed","true"); $("tabFeitas").setAttribute("aria-pressed","false"); $("navFeitas").classList.add("hide"); carregaPedidos(); };
-$("tabFeitas").onclick = () => { $("tabAtivas").setAttribute("aria-pressed","false"); $("tabFeitas").setAttribute("aria-pressed","true"); $("navFeitas").classList.remove("hide"); carregaPedidos(); };
 
 function esc(s){ return String(s==null?"":s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
 function brlc(n){ return "R$ " + Number(n).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2}); }
 
 let relModo = "semana", relRef = new Date(), relTexto = "";
 function dia0(d){ const x = new Date(d); x.setHours(0,0,0,0); return x; }
+function isoDia(d){ return d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0") + "-" + String(d.getDate()).padStart(2,"0"); }
+function fmtData(d){ return d.toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit"}); }
+function fmtDataLonga(d){ return d.toLocaleDateString("pt-BR",{weekday:"long",day:"2-digit",month:"2-digit"}); }
 function periodoRel(){
-  if (relModo === "dia") { const a = dia0(relRef), b = new Date(a); b.setDate(b.getDate()+1); return [a,b]; }
+  if (relModo === "mes") { const a = dia0(relRef); a.setDate(1); const b = new Date(a); b.setMonth(b.getMonth() + 1); return [a,b]; }
   const a = dia0(relRef); a.setDate(a.getDate() - ((a.getDay()+6)%7));
   const b = new Date(a); b.setDate(b.getDate()+7); return [a,b];
 }
-function fmtData(d){ return d.toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit"}); }
-function fmtDataLonga(d){ return d.toLocaleDateString("pt-BR",{weekday:"long",day:"2-digit",month:"2-digit"}); }
 function rotuloPeriodo(a,b){
-  if (relModo === "dia") return a.toLocaleDateString("pt-BR",{weekday:"long",day:"2-digit",month:"2-digit",year:"numeric"});
+  if (relModo === "mes") return a.toLocaleDateString("pt-BR",{month:"long",year:"numeric"});
   const f = new Date(b); f.setDate(f.getDate()-1);
   return fmtData(a) + " a " + fmtData(f) + "/" + f.getFullYear();
 }
+function msgRel(t){ $("relMsg").textContent = t; $("relMsg").classList.remove("hide"); }
 
-let relDados = [];
-function isoDia(d){ return d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0") + "-" + String(d.getDate()).padStart(2,"0"); }
-
-async function carregaRelatorio(){
-  const [a,b] = periodoRel();
-  $("relLabel").textContent = rotuloPeriodo(a,b);
-  $("relCorpo").innerHTML = '<div class="empty">Carregando…</div>';
-  const [rb, rp] = await Promise.all([
-    db.from("baixas").select("*, pedidos(*)")
-      .gte("concluida_em", a.toISOString()).lt("concluida_em", b.toISOString()).order("concluida_em"),
-    db.from("pagamentos").select("*").eq("status", "solicitado").order("solicitado_em")
-  ]);
-  desenhaPag(rp.data || []);
-  if (rb.error) { $("relCorpo").innerHTML = '<div class="empty">Erro ao carregar o relatório.</div>'; return; }
-  relDados = rb.data;
-  desenhaRelatorio(rb.data, a, b);
+function resumoPeriodo(){
+  const ok = periodoDados.filter(p => p.status === "concluida");
+  const total = ok.reduce((s,p) => s + valorDe(p), 0);
+  const pago = ok.reduce((s,p) => s + (p.pago_em ? valorDe(p) : 0), 0);
+  const elegiveis = ok.filter(p => !p.pago_em && !p.pagamento_id);
+  const disponivel = elegiveis.reduce((s,p) => s + valorDe(p), 0);
+  const solicitado = ok.filter(p => !p.pago_em && p.pagamento_id).reduce((s,p) => s + valorDe(p), 0);
+  return { ok, total, pago, aReceber: total - pago, elegiveis, disponivel, solicitado };
 }
 
-function desenhaPag(lista){
+function pintaPag(){
   const courier = papel === "entregador";
-  $("relPag").innerHTML = lista.map(p => `<div class="card" style="padding:16px;border-color:var(--gold)">
+  $("relPag").innerHTML = pagAbertos.map(p => `<div class="card" style="padding:16px;border-color:var(--gold)">
     <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px"><b>Pagamento solicitado</b><span class="pill warn">aguardando</span></div>
     <div class="sub" style="margin-top:6px">${esc(fmtData(new Date(p.periodo_inicio + "T00:00:00")))} a ${esc(fmtData(new Date(p.periodo_fim + "T00:00:00")))} · ${esc(p.qtd)} entrega(s) · ${brlc(p.valor)}</div>
     ${courier ? `<button class="ok" style="margin-top:12px" data-pago="${esc(p.id)}">${IC_OK}Marcar como pago</button>` : ""}
@@ -832,69 +850,76 @@ function desenhaPag(lista){
   document.querySelectorAll("[data-pago]").forEach(b => { b.onclick = () => marcaPago(b.dataset.pago); });
 }
 
-function desenhaRelatorio(rows, a, b){
-  const ok = rows.filter(r => !r.motivo_problema);
-  const prob = rows.filter(r => r.motivo_problema);
-  const val = r => Number((r.pedidos && r.pedidos.valor_cobrado) || 0);
-  const total = ok.reduce((s,r) => s + val(r), 0);
-  const pagoTotal = ok.reduce((s,r) => s + (r.pedidos && r.pedidos.pago_em ? val(r) : 0), 0);
-  const aReceber = total - pagoTotal;
-  const grupos = {};
-  ok.forEach(r => { const k = dia0(r.concluida_em).getTime(); (grupos[k] = grupos[k] || []).push(r); });
-  const chaves = Object.keys(grupos).map(Number).sort((x,y) => x - y);
-
-  let h = `<div style="display:flex;align-items:center;gap:14px;margin-bottom:16px"><img src="${LOGO}" alt="" style="width:56px;height:56px;border-radius:50%"><div><h2 style="margin:0">Palácio das Plumas Delivery</h2><div class="sub">Entregas realizadas · ${esc(rotuloPeriodo(a,b))}</div></div></div>
-    <div class="row" style="margin-bottom:10px">
-      <div class="stat"><span>Entregas</span><b>${ok.length}</b></div>
-      <div class="stat"><span>Total</span><b>${brlc(total)}</b></div>
-    </div>
-    <div class="row" style="margin-bottom:8px">
-      <div class="stat"><span>A receber</span><b>${brlc(aReceber)}</b></div>
-      <div class="stat"><span>Pago</span><b>${brlc(pagoTotal)}</b></div>
-    </div>`;
-  let txt = "Palácio das Plumas · Entregas realizadas\n" + rotuloPeriodo(a,b) + "\nEntregas: " + ok.length + " · Total: " + brlc(total) + "\nA receber: " + brlc(aReceber) + " · Pago: " + brlc(pagoTotal) + "\n";
-
-  if (!ok.length) h += '<div class="empty">Nenhuma entrega concluída neste período.</div>';
-
-  chaves.forEach(k => {
-    const lista = grupos[k], sub = lista.reduce((s,r) => s + val(r), 0), d = new Date(k);
-    h += `<div style="display:flex;justify-content:space-between;align-items:baseline;border-bottom:1px solid var(--line2);padding:8px 0 4px;margin-top:14px"><b style="text-transform:capitalize">${esc(fmtDataLonga(d))}</b><span>${lista.length} · ${brlc(sub)}</span></div>`;
-    txt += "\n" + fmtDataLonga(d) + ": " + lista.length + " entrega(s), " + brlc(sub);
-    lista.forEach(r => {
-      const p = r.pedidos || {};
-      const st = p.pago_em ? '<div><span class="pill ok">pago</span></div>' : (p.pagamento_id ? '<div><span class="pill warn">solicitado</span></div>' : '');
-      h += `<div style="display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid var(--line)">
-        <div style="min-width:0"><div style="font-size:15px">${horaBR(r.concluida_em)} · ${esc(p.endereco)}</div>
-        <div class="sub">Recebido por ${esc(r.recebido_por)}${r.veiculo_usado ? " · " + esc(r.veiculo_usado) : ""}</div></div>
-        <div style="text-align:right;white-space:nowrap"><div style="font-weight:500">${brlc(val(r))}</div>${st}</div></div>`;
-    });
+function pintaResumo(){
+  const [a,b] = periodoRel();
+  const r = resumoPeriodo();
+  const mes = relModo === "mes";
+  const qb = {};
+  r.ok.forEach(p => {
+    const d = dia0(p.horario_limite);
+    if (mes) d.setDate(d.getDate() - ((d.getDay()+6)%7));
+    const k = d.getTime(); qb[k] = qb[k] || { n: 0, v: 0 }; qb[k].n++; qb[k].v += valorDe(p);
   });
-
-  if (prob.length) {
-    h += '<div style="margin-top:22px"><b>Não concluídas (fora do total)</b></div>';
-    prob.forEach(r => {
-      const p = r.pedidos || {};
-      h += `<div style="padding:8px 0;border-bottom:1px solid var(--line)"><div style="font-size:15px">${fmtData(new Date(r.concluida_em))} ${horaBR(r.concluida_em)} · ${esc(p.endereco)}</div><div class="sub">${esc(r.motivo_problema)}</div></div>`;
-    });
-    txt += "\n\nNão concluídas (fora do total): " + prob.length;
+  const ks = Object.keys(qb).map(Number).sort((x,y) => x - y);
+  const linhas = ks.map(k => ({ rot: mes ? "Semana de " + fmtData(new Date(k)) : fmtDataLonga(new Date(k)), n: qb[k].n, v: qb[k].v }));
+  $("relResumo").innerHTML = `
+    <div class="sub">${esc(rotuloPeriodo(a,b))}</div>
+    <div class="total-lbl">Total ${mes ? "do mês" : "da semana"}</div>
+    <div class="total-val">${brlc(r.total)}</div>
+    <div class="sub">${r.ok.length} entrega(s) concluída(s)</div>
+    <div class="row" style="margin:16px 0 4px">
+      <div class="stat"><span>A receber</span><b>${brlc(r.aReceber)}</b></div>
+      <div class="stat"><span>Pago</span><b>${brlc(r.pago)}</b></div>
+    </div>
+    ${r.solicitado ? `<div class="hint">Já solicitado e aguardando pagamento: ${brlc(r.solicitado)}</div>` : ""}
+    <div class="qbs">${linhas.map(l => `<div class="qb"><span>${esc(l.rot)}</span><span>${l.n} · ${brlc(l.v)}</span></div>`).join("")}</div>`;
+  if (papel === "entregador") {
+    const btn = $("relSolicitar");
+    btn.disabled = r.disponivel <= 0;
+    btn.textContent = r.disponivel > 0 ? "Solicitar pagamento · " + brlc(r.disponivel) : "Nada a solicitar neste período";
   }
-  h += `<div class="sub" style="margin-top:18px;font-size:12px">Emitido em ${esc(new Date().toLocaleString("pt-BR"))}</div>`;
-  $("relCorpo").innerHTML = h;
-  relTexto = txt;
+  pintaPag();
+  montaDoc(a, b, r);
+  relTexto = "Palácio das Plumas · Entregas realizadas\n" + rotuloPeriodo(a,b)
+    + "\nTotal " + (mes ? "do mês" : "da semana") + ": " + brlc(r.total) + " (" + r.ok.length + " entrega(s))"
+    + "\nA receber: " + brlc(r.aReceber) + " · Pago: " + brlc(r.pago) + "\n"
+    + linhas.map(l => "\n" + l.rot + ": " + l.n + " entrega(s), " + brlc(l.v)).join("");
+}
+
+function montaDoc(a, b, r){
+  const ordenados = r.ok.slice().sort((x,y) => new Date(x.horario_limite) - new Date(y.horario_limite));
+  const prob = periodoDados.filter(p => p.status === "com_problema");
+  let h = `<div class="doc-head"><img src="${LOGO}" alt=""><div><h1>Palácio das Plumas Delivery</h1><div>Relatório de entregas · ${esc(rotuloPeriodo(a,b))}</div></div></div>`;
+  h += '<table><thead><tr><th>Dia</th><th>Hora</th><th>Endereço</th><th>Recebido por</th><th>Veículo</th><th class="r">Valor</th></tr></thead><tbody>';
+  let dia = null, sub = 0, nDia = 0;
+  const fechaDia = () => { if (dia !== null) h += `<tr class="sub-row"><td colspan="5">Subtotal de ${esc(fmtData(new Date(dia)))} · ${nDia} entrega(s)</td><td class="r">${brlc(sub)}</td></tr>`; };
+  ordenados.forEach(p => {
+    const k = dia0(p.horario_limite).getTime();
+    if (k !== dia) { fechaDia(); dia = k; sub = 0; nDia = 0; }
+    const bx = p.baixas && p.baixas[0];
+    sub += valorDe(p); nDia++;
+    h += `<tr><td>${esc(fmtData(new Date(p.horario_limite)))}</td><td>${horaBR(bx ? bx.concluida_em : p.horario_limite)}</td><td>${esc(p.endereco)}</td><td>${esc(bx && bx.recebido_por ? bx.recebido_por : p.destinatario)}</td><td>${esc(String(p.veiculo).replace("_"," "))}</td><td class="r">${brlc(valorDe(p))}</td></tr>`;
+  });
+  fechaDia();
+  h += `</tbody><tfoot><tr class="tot"><td colspan="5">Total · ${r.ok.length} entrega(s)</td><td class="r">${brlc(r.total)}</td></tr></tfoot></table>`;
+  if (!ordenados.length) h += "<p>Nenhuma entrega concluída neste período.</p>";
+  h += `<p>Pago: ${brlc(r.pago)} · A receber: ${brlc(r.aReceber)}</p>`;
+  if (prob.length) h += "<p><b>Não concluídas (fora do total):</b> " + prob.map(p => esc(fmtData(new Date(p.horario_limite))) + " " + esc(p.endereco)).join("; ") + "</p>";
+  h += `<p class="doc-foot">Emitido em ${esc(new Date().toLocaleString("pt-BR"))}</p>`;
+  $("docImpressao").innerHTML = h;
 }
 
 async function solicitaPagamento(){
-  const el = relDados.filter(r => !r.motivo_problema && r.pedidos && !r.pedidos.pago_em && !r.pedidos.pagamento_id);
-  if (!el.length) { msgRel("Nada a solicitar neste período."); return; }
-  const total = el.reduce((s,r) => s + Number(r.pedidos.valor_cobrado || 0), 0);
-  if (!confirm("Solicitar " + brlc(total) + " (" + el.length + " entrega(s)) para a loja?")) return;
+  const r = resumoPeriodo();
+  if (!r.elegiveis.length) { msgRel("Nada a solicitar neste período."); return; }
+  if (!confirm("Solicitar " + brlc(r.disponivel) + " (" + r.elegiveis.length + " entrega(s)) para a loja?")) return;
   const [a,b] = periodoRel(); const f = new Date(b); f.setDate(f.getDate() - 1);
   const { error } = await db.from("pagamentos").insert({
     periodo_inicio: isoDia(a), periodo_fim: isoDia(f),
-    qtd: el.length, valor: total, pedidos_ids: el.map(r => r.pedido_id)
+    qtd: r.elegiveis.length, valor: r.disponivel, pedidos_ids: r.elegiveis.map(p => p.id)
   });
   if (error) { msgRel("Não foi possível registrar a solicitação."); return; }
-  await carregaRelatorio();
+  await carregaPedidos();
   msgRel("Solicitação registrada. A loja foi avisada no Telegram.");
 }
 
@@ -902,33 +927,21 @@ async function marcaPago(id){
   if (!confirm("Confirmar que você recebeu este pagamento?")) return;
   const { error } = await db.from("pagamentos").update({ status: "pago", pago_em: new Date().toISOString() }).eq("id", id);
   if (error) { msgRel("Não foi possível marcar como pago."); return; }
-  await carregaRelatorio();
+  await carregaPedidos();
   msgRel("Pagamento registrado.");
 }
 
-function abreRelatorio(){
-  $("telaLoja").classList.add("hide"); $("telaEntregador").classList.add("hide");
-  $("telaRelatorio").classList.remove("hide");
-  relRef = new Date(); $("relMsg").classList.add("hide");
-  $("relSolicitar").classList.toggle("hide", papel !== "entregador");
-  carregaRelatorio(); window.scrollTo(0,0);
-}
-function voltaRelatorio(){
-  $("telaRelatorio").classList.add("hide");
-  $(papel === "loja" ? "telaLoja" : "telaEntregador").classList.remove("hide");
+function passo(dir){
+  relRef = new Date(relRef);
+  if (relModo === "mes") relRef.setMonth(relRef.getMonth() + dir, 1); else relRef.setDate(relRef.getDate() + 7 * dir);
   carregaPedidos();
 }
-function msgRel(t){ $("relMsg").textContent = t; $("relMsg").classList.remove("hide"); }
-function passo(dir){ relRef = new Date(relRef); relRef.setDate(relRef.getDate() + dir * (relModo === "dia" ? 1 : 7)); carregaRelatorio(); }
-
-$("tabRelL").onclick = abreRelatorio;
-$("tabRelE").onclick = abreRelatorio;
-$("relVoltar").onclick = voltaRelatorio;
 $("relAnt").onclick = () => passo(-1);
 $("relProx").onclick = () => passo(1);
+$("relHoje").onclick = () => { relRef = new Date(); carregaPedidos(); };
 $("relImprimir").onclick = () => window.print();
 document.querySelectorAll("#segPeriodo button").forEach(b => {
-  b.onclick = () => { relModo = b.dataset.p; pintaSeg("segPeriodo","p",relModo); carregaRelatorio(); };
+  b.onclick = () => { relModo = b.dataset.p; pintaSeg("segPeriodo", "p", relModo); diasMarcados.clear(); carregaPedidos(); };
 });
 $("relCopiar").onclick = async () => {
   try { await navigator.clipboard.writeText(relTexto); msgRel("Resumo copiado."); }
@@ -938,6 +951,7 @@ $("relCopiar").onclick = async () => {
     t.remove();
   }
 };
+
 let rVeic = "carro", rCont = 0;
 function abreRetro(){
   const iso = isoDia(new Date());
@@ -1009,22 +1023,6 @@ $("minSalvar").onclick = salvaAjustes;
 
 function iniciaForm(){ const hj = isoDia(new Date()); $("dataLimite").value = hj; $("dataLimite").min = hj; }
 
-// ---- dias anteriores
-function rotuloDia(d){
-  const dif = Math.round((dia0(d) - dia0(new Date())) / 86400000);
-  const base = d.toLocaleDateString("pt-BR", {weekday:"short", day:"2-digit", month:"2-digit"});
-  return dif === 0 ? "Hoje · " + base : dif === -1 ? "Ontem · " + base : dif === 1 ? "Amanhã · " + base : base;
-}
-function atualizaNav(){ document.querySelectorAll("[data-nav] .dialabel").forEach(e => { e.textContent = rotuloDia(diaSel); }); }
-document.querySelectorAll("[data-nav] button").forEach(b => {
-  b.onclick = () => {
-    const n = Number(b.dataset.dia);
-    if (n === 0) diaSel = new Date(); else { diaSel = new Date(diaSel); diaSel.setDate(diaSel.getDate() + n); }
-    atualizaNav(); carregaPedidos();
-  };
-});
-atualizaNav();
-
 // ---- historico de clientes e enderecos
 const semAcento = s => String(s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 function entradaDe(p, n){
@@ -1066,7 +1064,7 @@ function preencheDe(e){
 }
 function repetePedido(id){
   const p = ultimos.find(x => x.id === id); if (!p) return;
-  trocaAba("novo"); preencheDe(entradaDe(p, 1)); window.scrollTo(0, 0);
+  preencheDe(entradaDe(p, 1)); rolar($("secNovo"));
 }
 $("busca").oninput = mostraBusca; $("busca").onfocus = mostraBusca;
 $("buscaRes").onclick = ev => { const el = ev.target.closest("[data-h]"); if (el) preencheDe(sugAtual[Number(el.dataset.h)]); };
@@ -1076,6 +1074,7 @@ document.addEventListener("click", ev => { if (!ev.target.closest("#busca") && !
 function ligaAcoes(){
   document.querySelectorAll("[data-edit]").forEach(b => { b.onclick = () => abreEdit(b.dataset.edit); });
   document.querySelectorAll("[data-rep]").forEach(b => { b.onclick = () => repetePedido(b.dataset.rep); });
+  document.querySelectorAll("[data-baixa]").forEach(a => { a.onclick = e => { e.preventDefault(); abreBaixa(a.dataset.baixa, a.dataset.end, a.dataset.dest); }; });
 }
 function eAtualiza(){
   const p = edP; if (!p) return null;
@@ -1142,7 +1141,7 @@ async function salvaEdit(){
     Object.assign(patch, { bairro_id: z ? z.id : null, veiculo: eVeic,
       cotacao_valor: parseFloat($("eCot").value.replace(",", ".")), valor_cobrado: fin });
   }
-  if (!feita || p.observacoes === "Registrada depois") patch.horario_limite = quando.toISOString();
+  patch.horario_limite = quando.toISOString();
   const r = await db.from("pedidos").update(patch).eq("id", p.id);
   if (r && r.error) return erro("Não foi possível salvar. Tente de novo.");
   if (b) {
@@ -1161,7 +1160,6 @@ $("eFechar").onclick = () => $("modalEdit").classList.add("hide");
 $("eSalvar").onclick = salvaEdit;
 $("eZona").onchange = eAtualiza; $("eCot").oninput = eAtualiza;
 document.querySelectorAll("#segEdit button").forEach(b => { b.onclick = () => { eVeic = b.dataset.ev; pintaSeg("segEdit", "ev", eVeic); eAtualiza(); }; });
-$("btnRetroL").onclick = abreRetro;
 
 $("verSenha").onchange = e => { $("pin").type = e.target.checked ? "text" : "password"; };
 
