@@ -149,6 +149,13 @@ button.small{width:auto;padding:9px 16px;font-size:14px;border-radius:12px}
 .modal .card{max-width:560px;margin:24px auto;box-shadow:0 24px 60px rgba(0,0,0,.35)}
 .foot{text-align:center;color:var(--ink3);font-size:13px;margin-top:28px}
 
+.dianav{display:flex;align-items:center;gap:8px;margin-bottom:14px}
+.dianav button{width:46px;padding:10px 0;font-size:20px;line-height:1}
+.dianav .hojebtn{width:auto;padding:10px 14px;font-size:14px}
+.dianav .dialabel{flex:1;text-align:center;font-weight:500;text-transform:capitalize}
+.acts2{display:flex;gap:8px;margin-top:12px}
+.sug{border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin-top:8px;cursor:pointer;background:var(--card)}
+.sug:active{background:var(--accent-bg)}
 @media print{
   html,body{background:#fff!important;color:#000!important}
   body::before,header.bar,.tabs,.noprint,#telaLogin,#telaLoja,#telaEntregador,.foot,.modal{display:none!important}
@@ -201,6 +208,11 @@ button.small{width:auto;padding:9px 16px;font-size:14px;border-radius:12px}
 
   <div id="viewNovo">
     <div class="card">
+      <div class="field" style="margin-bottom:0">
+        <label for="busca">Repetir um pedido anterior</label>
+        <input id="busca" autocomplete="off" placeholder="Buscar cliente ou endereço">
+        <div id="buscaRes"></div>
+      </div>
       <div class="sec">Destino</div>
       <div class="field">
         <label for="endereco">Endereço completo</label>
@@ -217,10 +229,16 @@ button.small{width:auto;padding:9px 16px;font-size:14px;border-radius:12px}
         <label for="destinatario">Quem recebe</label>
         <input id="destinatario" autocomplete="off" placeholder="Nome">
       </div>
+      <div class="field" style="margin-bottom:0">
+        <label for="telefone">Telefone</label>
+        <input id="telefone" inputmode="tel" placeholder="Opcional">
+      </div>
+
+      <div class="sec">Entrega</div>
       <div class="row">
         <div class="field" style="margin-bottom:0">
-          <label for="telefone">Telefone</label>
-          <input id="telefone" inputmode="tel" placeholder="Opcional">
+          <label for="dataLimite">Dia</label>
+          <input id="dataLimite" type="date">
         </div>
         <div class="field" style="margin-bottom:0">
           <label for="limite">Entregar até</label>
@@ -262,12 +280,19 @@ button.small{width:auto;padding:9px 16px;font-size:14px;border-radius:12px}
     <div class="err hide" id="criaErr"></div>
   </div>
   <div id="viewPainel" class="hide">
+    <div class="dianav" data-nav>
+      <button data-dia="-1" aria-label="Dia anterior">&lsaquo;</button>
+      <div class="dialabel"></div>
+      <button data-dia="1" aria-label="Próximo dia">&rsaquo;</button>
+      <button class="hojebtn" data-dia="0">Hoje</button>
+    </div>
     <div class="stats">
       <div class="stat"><span>Pendentes</span><b id="cPend">0</b></div>
       <div class="stat"><span>Em rota</span><b id="cRota">0</b></div>
       <div class="stat"><span>Concluídas</span><b id="cFeito">0</b></div>
       <div class="stat"><span>Com problema</span><b id="cProb">0</b></div>
     </div>
+    <button class="ghost" id="btnRetroL" style="margin-bottom:16px">+ Registrar entrega já feita</button>
     <div id="listaLoja"></div>
   </div>
 </section>
@@ -278,6 +303,12 @@ button.small{width:auto;padding:9px 16px;font-size:14px;border-radius:12px}
     <button id="tabFeitas" aria-pressed="false">Finalizadas</button>
     <button id="tabRelE" aria-pressed="false">Relatório</button>
   </div>
+  <div class="dianav hide" id="navFeitas" data-nav>
+      <button data-dia="-1" aria-label="Dia anterior">&lsaquo;</button>
+      <div class="dialabel"></div>
+      <button data-dia="1" aria-label="Próximo dia">&rsaquo;</button>
+      <button class="hojebtn" data-dia="0">Hoje</button>
+    </div>
   <button class="ghost" id="btnRetro" style="margin-bottom:16px">+ Registrar entrega já feita</button>
   <div id="listaEntregador"></div>
 </section>
@@ -308,6 +339,42 @@ button.small{width:auto;padding:9px 16px;font-size:14px;border-radius:12px}
 </section>
 
 <div class="foot" id="rodape"></div>
+</div>
+
+<div class="modal hide" id="modalEdit">
+  <div class="card">
+    <h2>Corrigir pedido</h2>
+    <div class="row">
+      <div class="field"><label for="eData">Dia</label><input id="eData" type="date"></div>
+      <div class="field"><label for="eHora" id="eHoraLb">Entregar até</label><input id="eHora" type="time"></div>
+    </div>
+    <div class="field"><label for="eEnd">Endereço</label><input id="eEnd" autocomplete="off"></div>
+    <div class="field"><label for="eZona">Região</label><select id="eZona"></select></div>
+    <div class="field"><label for="eDest">Quem recebe</label><input id="eDest" autocomplete="off"></div>
+    <div class="field hide" id="eRecWrap"><label for="eRec">Recebido por</label><input id="eRec" autocomplete="off"></div>
+    <div class="field"><label for="eTel">Telefone</label><input id="eTel" inputmode="tel"></div>
+    <div class="field">
+      <label>Veículo</label>
+      <div class="seg" id="segEdit">
+        <button data-ev="carro" aria-pressed="false">Carro</button>
+        <button data-ev="moto" aria-pressed="false">Moto</button>
+        <button data-ev="tanto_faz" aria-pressed="false">Tanto faz</button>
+      </div>
+    </div>
+    <div class="row">
+      <div class="field"><label for="eApp">Aplicativo</label><input id="eApp" list="appsCot" autocomplete="off"></div>
+      <div class="field"><label for="eCot">Valor da cotação</label><input id="eCot" inputmode="decimal"></div>
+    </div>
+    <div class="field"><label for="eObs">Observações</label><textarea id="eObs" rows="2"></textarea></div>
+    <div class="hint hide" id="eTrava"></div>
+    <div class="price"><span>Valor da entrega</span><b id="eValor">R$ 0</b></div>
+    <div class="hint hide" id="eNota" style="text-align:right;margin-top:8px"></div>
+    <div class="err hide" id="eErr"></div>
+    <div class="row" style="margin-top:18px">
+      <button class="ghost" id="eFechar">Cancelar</button>
+      <button class="primary" id="eSalvar">Salvar</button>
+    </div>
+  </div>
 </div>
 
 <div class="modal hide" id="modalAjustes">
@@ -425,6 +492,7 @@ const BAIRROS = {
 };
 
 let papel = null, zonas = [], veiculo = "tanto_faz", pedidoAtual = null, timer = null;
+let diaSel = new Date(), ultimos = [], historico = [], sugAtual = [], edP = null, eVeic = "carro";
 let resultado = "concluida", veiculoUsado = "carro";
 const $ = id => document.getElementById(id);
 
@@ -492,12 +560,25 @@ function linkRota(end){
 }
 
 async function carregaPedidos(){
-  const hoje = new Date(); hoje.setHours(0,0,0,0);
-  const { data, error } = await db.from("pedidos")
-    .select("*, baixas(*), bairros(nome)")
-    .gte("horario_limite", hoje.toISOString())
-    .order("horario_limite");
-  if (error) return;
+  const ini = dia0(diaSel), fim = new Date(ini); fim.setDate(fim.getDate() + 1);
+  const sel = "*, baixas(*)", abertos = ["pendente", "em_rota"];
+  const ativas = papel === "entregador" && $("tabAtivas").getAttribute("aria-pressed") === "true";
+  let data = [];
+  if (ativas) {
+    const r = await db.from("pedidos").select(sel).in("status", abertos).order("horario_limite");
+    if (r.error) return;
+    data = r.data;
+  } else {
+    const r = await db.from("pedidos").select(sel)
+      .gte("horario_limite", ini.toISOString()).lt("horario_limite", fim.toISOString()).order("horario_limite");
+    if (r.error) return;
+    data = r.data;
+    if (papel === "loja" && ini.getTime() === dia0(new Date()).getTime()) {
+      const o = await db.from("pedidos").select(sel).in("status", abertos).lt("horario_limite", ini.toISOString()).order("horario_limite");
+      if (!o.error) data = o.data.concat(data);
+    }
+  }
+  ultimos = data;
   if (papel === "loja") pintaLoja(data); else pintaEntregador(data);
 }
 
@@ -507,7 +588,7 @@ function pintaLoja(ps){
   $("cPend").textContent = c.pendente; $("cRota").textContent = c.em_rota;
   $("cFeito").textContent = c.concluida; $("cProb").textContent = c.com_problema;
 
-  if (!ps.length) { $("listaLoja").innerHTML = '<div class="empty">Nenhum pedido hoje.</div>'; return; }
+  if (!ps.length) { $("listaLoja").innerHTML = '<div class="empty">Nenhum pedido neste dia.</div>'; return; }
 
   $("listaLoja").innerHTML = ps.map(p => {
     const b = p.baixas && p.baixas[0];
@@ -521,8 +602,10 @@ function pintaLoja(ps){
       <div class="top"><span class="hora">${horaBR(p.horario_limite)}</span>${badge}</div>
       <div class="end">${esc(p.endereco)}</div>
       <div class="meta">${esc(p.destinatario)} · ${brl(p.valor_cobrado)} · ${p.veiculo.replace("_"," ")}${extra}</div>
+      <div class="acts2"><button class="ghost small" data-edit="${p.id}">Editar</button><button class="ghost small" data-rep="${p.id}">Repetir</button></div>
     </div>`;
   }).join("");
+  ligaAcoes();
 }
 
 function pintaEntregador(ps){
@@ -531,7 +614,7 @@ function pintaEntregador(ps){
     ? (p.status === "pendente" || p.status === "em_rota")
     : (p.status === "concluida" || p.status === "com_problema"));
 
-  if (!lista.length) { $("listaEntregador").innerHTML = `<div class="empty">${ativas?"Nenhuma entrega pendente.":"Nada finalizado hoje."}</div>`; return; }
+  if (!lista.length) { $("listaEntregador").innerHTML = `<div class="empty">${ativas?"Nenhuma entrega pendente.":"Nada finalizado neste dia."}</div>`; return; }
 
   $("listaEntregador").innerHTML = lista.map(p => {
     const b = p.baixas && p.baixas[0];
@@ -542,6 +625,7 @@ function pintaEntregador(ps){
         <div class="top"><span class="hora">${horaBR(p.horario_limite)}</span><span class="pill ${p.status==="concluida"?"ok":"bad"}">${esc(txt)}</span></div>
         <div class="end">${esc(p.endereco)}</div>
         <div class="meta">${esc(p.destinatario)} · ${brl(p.valor_cobrado)}</div>
+        <div class="acts2"><button class="ghost small" data-edit="${p.id}">Editar</button></div>
       </div>`;
     }
     const r = restante(p.horario_limite);
@@ -555,12 +639,14 @@ function pintaEntregador(ps){
         <a href="${linkRota(p.endereco)}" target="_blank" rel="noopener"><button>${IC_ROTA}Abrir rota</button></a>
         <a href="#" data-baixa="${p.id}" data-end="${esc(p.endereco)}" data-dest="${esc(p.destinatario)}"><button class="ok">${IC_OK}Dar baixa</button></a>
       </div>
+      <div class="acts2"><button class="ghost small" data-edit="${p.id}">Editar</button></div>
     </div>`;
   }).join("");
 
   document.querySelectorAll("[data-baixa]").forEach(a => {
     a.onclick = e => { e.preventDefault(); abreBaixa(a.dataset.baixa, a.dataset.end, a.dataset.dest); };
   });
+  ligaAcoes();
 }
 
 function abreBaixa(id, end, dest){
@@ -607,9 +693,10 @@ async function criaPedido(){
   if (!z) return erro("Escolha a região da entrega.");
   if (!app) return erro("Informe em qual aplicativo fez a cotação.");
   if (c.final == null) return erro("Informe o valor da cotação.");
-  const d = new Date(); const [h,m] = hora.split(":");
-  d.setHours(Number(h), Number(m), 0, 0);
-  if (d < new Date()) d.setDate(d.getDate() + 1);
+  const dia = $("dataLimite").value;
+  if (!dia) return erro("Escolha o dia.");
+  const d = new Date(dia + "T" + hora + ":00");
+  if (d.getTime() < Date.now() - 30*60000) return erro("Esse horário já passou. Para dias anteriores, use Registrar entrega já feita, no Painel.");
 
   const r = await db.from("pedidos").insert({
     endereco: end, bairro_id: z.id, destinatario: dest,
@@ -621,6 +708,7 @@ async function criaPedido(){
   if (r.error) return erro("Erro ao criar. Tente de novo.");
   $("endereco").value = ""; $("destinatario").value = ""; $("telefone").value = "";
   $("limite").value = ""; $("obs").value = ""; $("cotValor").value = ""; $("zona").value = "";
+  iniciaForm(); carregaHistorico();
   atualizaPreco();
   $("criaErr").classList.add("hide");
   trocaAba("painel"); carregaPedidos();
@@ -642,6 +730,8 @@ function entra(p){
     $("papel").textContent = "Loja · Palácio das Plumas";
     $("telaLoja").classList.remove("hide");
     carregaZonas();
+    iniciaForm();
+    carregaHistorico();
   } else {
     $("papel").textContent = "Entregador";
     $("telaEntregador").classList.remove("hide");
@@ -693,8 +783,8 @@ $("btnConfirmaBaixa").onclick = confirmaBaixa;
 $("btnCancelaBaixa").onclick = () => $("modalBaixa").classList.add("hide");
 $("tabNovo").onclick = () => trocaAba("novo");
 $("tabPainel").onclick = () => { trocaAba("painel"); carregaPedidos(); };
-$("tabAtivas").onclick = () => { $("tabAtivas").setAttribute("aria-pressed","true"); $("tabFeitas").setAttribute("aria-pressed","false"); carregaPedidos(); };
-$("tabFeitas").onclick = () => { $("tabAtivas").setAttribute("aria-pressed","false"); $("tabFeitas").setAttribute("aria-pressed","true"); carregaPedidos(); };
+$("tabAtivas").onclick = () => { $("tabAtivas").setAttribute("aria-pressed","true"); $("tabFeitas").setAttribute("aria-pressed","false"); $("navFeitas").classList.add("hide"); carregaPedidos(); };
+$("tabFeitas").onclick = () => { $("tabAtivas").setAttribute("aria-pressed","false"); $("tabFeitas").setAttribute("aria-pressed","true"); $("navFeitas").classList.remove("hide"); carregaPedidos(); };
 
 function esc(s){ return String(s==null?"":s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
 function brlc(n){ return "R$ " + Number(n).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2}); }
@@ -916,6 +1006,162 @@ async function salvaAjustes(){
 $("btnAjustes").onclick = abreAjustes;
 $("minFechar").onclick = () => $("modalAjustes").classList.add("hide");
 $("minSalvar").onclick = salvaAjustes;
+
+function iniciaForm(){ const hj = isoDia(new Date()); $("dataLimite").value = hj; $("dataLimite").min = hj; }
+
+// ---- dias anteriores
+function rotuloDia(d){
+  const dif = Math.round((dia0(d) - dia0(new Date())) / 86400000);
+  const base = d.toLocaleDateString("pt-BR", {weekday:"short", day:"2-digit", month:"2-digit"});
+  return dif === 0 ? "Hoje · " + base : dif === -1 ? "Ontem · " + base : dif === 1 ? "Amanhã · " + base : base;
+}
+function atualizaNav(){ document.querySelectorAll("[data-nav] .dialabel").forEach(e => { e.textContent = rotuloDia(diaSel); }); }
+document.querySelectorAll("[data-nav] button").forEach(b => {
+  b.onclick = () => {
+    const n = Number(b.dataset.dia);
+    if (n === 0) diaSel = new Date(); else { diaSel = new Date(diaSel); diaSel.setDate(diaSel.getDate() + n); }
+    atualizaNav(); carregaPedidos();
+  };
+});
+atualizaNav();
+
+// ---- historico de clientes e enderecos
+const semAcento = s => String(s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+function entradaDe(p, n){
+  return { endereco: p.endereco, destinatario: p.destinatario, telefone: p.telefone || "", bairro_id: p.bairro_id,
+    veiculo: p.veiculo, app: p.cotacao_app || "", valor: (p.cotacao_valor != null ? p.cotacao_valor : p.valor_cobrado),
+    obs: p.observacoes === "Registrada depois" ? "" : (p.observacoes || ""), n: n || 1 };
+}
+async function carregaHistorico(){
+  const { data, error } = await db.from("pedidos")
+    .select("endereco,destinatario,telefone,bairro_id,veiculo,cotacao_app,cotacao_valor,valor_cobrado,observacoes")
+    .order("criado_em", { ascending: false }).limit(400);
+  if (error || !data) return;
+  const mapa = new Map();
+  data.forEach(p => {
+    const k = semAcento(p.destinatario) + "|" + semAcento(p.endereco);
+    const e = mapa.get(k);
+    if (e) { e.n++; if (!e.telefone && p.telefone) e.telefone = p.telefone; return; }
+    mapa.set(k, entradaDe(p, 1));
+  });
+  historico = [...mapa.values()];
+}
+function mostraBusca(){
+  const toks = semAcento($("busca").value).split(/\s+/).filter(Boolean);
+  sugAtual = historico.filter(e => { const alvo = semAcento(e.destinatario + " " + e.endereco); return toks.every(k => alvo.includes(k)); })
+    .slice(0, toks.length ? 6 : 5);
+  $("buscaRes").innerHTML = sugAtual.length
+    ? sugAtual.map((e, i) => `<div class="sug" role="button" data-h="${i}"><b>${esc(e.destinatario)}</b><span class="sub"> · ${e.n} pedido(s)</span><div class="sub">${esc(e.endereco)}</div><div class="sub">${esc(String(e.veiculo).replace("_", " "))}${e.app ? " · " + esc(e.app) : ""}${e.valor ? " · " + brlc(e.valor) : ""}</div></div>`).join("")
+    : (toks.length ? '<div class="hint">Nada encontrado.</div>' : "");
+}
+function preencheDe(e){
+  $("endereco").value = e.endereco; $("destinatario").value = e.destinatario; $("telefone").value = e.telefone || "";
+  let zid = e.bairro_id && zonas.some(z => z.id === e.bairro_id) ? e.bairro_id : detectaZona(e.endereco);
+  $("zona").value = zid && zonas.some(z => z.id === zid) ? String(zid) : "";
+  veiculo = e.veiculo; pintaSeg("segVeiculo", "v", veiculo);
+  $("cotApp").value = e.app || ""; $("cotValor").value = e.valor ? String(e.valor).replace(".", ",") : "";
+  $("obs").value = e.obs || ""; $("limite").value = ""; iniciaForm();
+  $("busca").value = ""; $("buscaRes").innerHTML = "";
+  atualizaPreco(); $("limite").focus();
+}
+function repetePedido(id){
+  const p = ultimos.find(x => x.id === id); if (!p) return;
+  trocaAba("novo"); preencheDe(entradaDe(p, 1)); window.scrollTo(0, 0);
+}
+$("busca").oninput = mostraBusca; $("busca").onfocus = mostraBusca;
+$("buscaRes").onclick = ev => { const el = ev.target.closest("[data-h]"); if (el) preencheDe(sugAtual[Number(el.dataset.h)]); };
+document.addEventListener("click", ev => { if (!ev.target.closest("#busca") && !ev.target.closest("#buscaRes")) $("buscaRes").innerHTML = ""; });
+
+// ---- corrigir pedido
+function ligaAcoes(){
+  document.querySelectorAll("[data-edit]").forEach(b => { b.onclick = () => abreEdit(b.dataset.edit); });
+  document.querySelectorAll("[data-rep]").forEach(b => { b.onclick = () => repetePedido(b.dataset.rep); });
+}
+function eAtualiza(){
+  const p = edP; if (!p) return null;
+  const trava = !!(p.pago_em || p.pagamento_id);
+  const z = zonas.find(x => x.id === Number($("eZona").value));
+  $("eErr").classList.add("hide");
+  if (!trava && z && z.valor_moto == null && eVeic === "moto") {
+    eVeic = "carro"; pintaSeg("segEdit", "ev", eVeic);
+    $("eErr").textContent = "Essa região só atende de carro."; $("eErr").classList.remove("hide");
+  }
+  const q = parseFloat(($("eCot").value || "").replace(",", "."));
+  const min = minimoDe(z, eVeic);
+  const valido = isFinite(q) && q > 0;
+  const fin = trava ? Number(p.valor_cobrado) : (valido ? Math.max(q, min || 0) : null);
+  $("eValor").textContent = fin == null ? "R$ 0" : brlc(fin);
+  const aplicado = !trava && valido && min != null && q < min;
+  $("eNota").textContent = aplicado ? "Valor mínimo desta região aplicado. Cotação informada: " + brlc(q) + "." : "";
+  $("eNota").classList.toggle("hide", !aplicado);
+  return fin;
+}
+function abreEdit(id){
+  const p = ultimos.find(x => x.id === id); if (!p) return;
+  edP = p;
+  const b = p.baixas && p.baixas[0];
+  const feita = (p.status === "concluida" || p.status === "com_problema") && !!b;
+  const quando = new Date(feita ? b.concluida_em : p.horario_limite);
+  $("eData").value = isoDia(quando);
+  $("eHora").value = String(quando.getHours()).padStart(2, "0") + ":" + String(quando.getMinutes()).padStart(2, "0");
+  $("eHoraLb").textContent = feita ? "Hora da entrega" : "Entregar até";
+  $("eEnd").value = p.endereco; $("eDest").value = p.destinatario; $("eTel").value = p.telefone || "";
+  $("eObs").value = p.observacoes || ""; $("eApp").value = p.cotacao_app || "";
+  $("eCot").value = String(p.cotacao_valor != null ? p.cotacao_valor : p.valor_cobrado).replace(".", ",");
+  $("eRecWrap").classList.toggle("hide", !(p.status === "concluida" && b));
+  $("eRec").value = b ? (b.recebido_por || "") : "";
+  $("eZona").innerHTML = (p.bairro_id ? "" : '<option value="">Sem região (valor manual)</option>') + zonas.map(z => `<option value="${z.id}">${esc(z.nome)}</option>`).join("");
+  $("eZona").value = p.bairro_id ? String(p.bairro_id) : "";
+  eVeic = p.veiculo; pintaSeg("segEdit", "ev", eVeic);
+  const trava = !!(p.pago_em || p.pagamento_id);
+  ["eZona", "eCot"].forEach(i => { $(i).disabled = trava; });
+  document.querySelectorAll("#segEdit button").forEach(x => { x.disabled = trava; });
+  $("eTrava").textContent = "Valor e veículo travados: já existe pagamento solicitado ou pago para esta entrega.";
+  $("eTrava").classList.toggle("hide", !trava);
+  eAtualiza();
+  $("modalEdit").classList.remove("hide");
+}
+async function salvaEdit(){
+  const p = edP; if (!p) return;
+  const b = p.baixas && p.baixas[0];
+  const feita = (p.status === "concluida" || p.status === "com_problema") && !!b;
+  const trava = !!(p.pago_em || p.pagamento_id);
+  const erro = t => { $("eErr").textContent = t; $("eErr").classList.remove("hide"); };
+  const end = $("eEnd").value.trim(), dest = $("eDest").value.trim();
+  if (!end || !dest) return erro("Preencha o endereço e quem recebe.");
+  if (!$("eData").value || !$("eHora").value) return erro("Informe o dia e a hora.");
+  const quando = new Date($("eData").value + "T" + $("eHora").value + ":00");
+  if (feita && quando.getTime() > Date.now() + 5*60000) return erro("Esse horário ainda não chegou.");
+  const patch = { endereco: end, destinatario: dest, telefone: $("eTel").value.trim() || null,
+    observacoes: $("eObs").value.trim() || null, cotacao_app: $("eApp").value.trim() || null };
+  if (!trava) {
+    const z = zonas.find(x => x.id === Number($("eZona").value));
+    if (p.bairro_id && !z) return erro("Escolha a região.");
+    const fin = eAtualiza();
+    if (fin == null) return erro("Informe o valor da cotação.");
+    Object.assign(patch, { bairro_id: z ? z.id : null, veiculo: eVeic,
+      cotacao_valor: parseFloat($("eCot").value.replace(",", ".")), valor_cobrado: fin });
+  }
+  if (!feita || p.observacoes === "Registrada depois") patch.horario_limite = quando.toISOString();
+  const r = await db.from("pedidos").update(patch).eq("id", p.id);
+  if (r && r.error) return erro("Não foi possível salvar. Tente de novo.");
+  if (b) {
+    const pb = {};
+    if (feita) pb.concluida_em = quando.toISOString();
+    if (p.status === "concluida") pb.recebido_por = $("eRec").value.trim() || dest;
+    if (Object.keys(pb).length) {
+      const r2 = await db.from("baixas").update(pb).eq("pedido_id", p.id);
+      if (r2 && r2.error) return erro("O pedido foi salvo, mas a baixa não. Tente de novo.");
+    }
+  }
+  $("modalEdit").classList.add("hide");
+  carregaPedidos(); carregaHistorico();
+}
+$("eFechar").onclick = () => $("modalEdit").classList.add("hide");
+$("eSalvar").onclick = salvaEdit;
+$("eZona").onchange = eAtualiza; $("eCot").oninput = eAtualiza;
+document.querySelectorAll("#segEdit button").forEach(b => { b.onclick = () => { eVeic = b.dataset.ev; pintaSeg("segEdit", "ev", eVeic); eAtualiza(); }; });
+$("btnRetroL").onclick = abreRetro;
 
 $("verSenha").onchange = e => { $("pin").type = e.target.checked ? "text" : "password"; };
 
