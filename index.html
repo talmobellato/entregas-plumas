@@ -444,6 +444,7 @@ details.dia>summary b{flex:1;text-transform:capitalize}
       <div class="field"><label for="aMoto">Moto (km por litro)</label><input id="aMoto" inputmode="decimal"></div>
     </div>
     <div class="field"><label for="aAlvo">Valor de um abastecimento (R$)</label><input id="aAlvo" inputmode="decimal"></div>
+    <div class="field"><label for="aTaxa">Taxa de desgaste cobrada na nota (%)</label><input id="aTaxa" inputmode="decimal"><div class="hint">Cobre óleo, pneus, freios e manutenção. Vai somada ao valor de cada corrida, aparece na nota e entra no Pix. Use 0 para não cobrar.</div></div>
     <div class="hint" style="margin:-6px 0 4px">Com ida e volta o fator é 2. Se você encadeia entregas e volta menos, use um número menor.</div>
     <div class="sec">Valores mínimos por região</div>
     <p class="sub" style="margin:-4px 0 12px">Nenhuma entrega é cobrada abaixo destes valores, mesmo que a cotação da loja seja menor.</p>
@@ -546,7 +547,7 @@ const LOGO = "data:image/webp;base64,UklGRvo7AABXRUJQVlA4WAoAAAAQAAAA2wAA2wAAQUx
 document.querySelectorAll("img[data-logo]").forEach(i => { i.src = LOGO; });
 const IC_ROTA = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l18-8-8 18-2-8-8-2z"/></svg>';
 const PIX = { chave: "144a9bfa-b079-44e8-b7af-6406c1e24112", nome: "TALMO BELLATO", cidade: "SAO PAULO" };
-let ajustesCx = { preco_litro: 6.4, consumo_carro: 10, consumo_moto: 30, fator_km: 2, abastecimento_alvo: 45 };
+let ajustesCx = { preco_litro: 6.4, consumo_carro: 10, consumo_moto: 30, fator_km: 2, abastecimento_alvo: 45, taxa_desgaste_pct: 0 };
 const IC_CHECK = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg>';
 const IC_OK = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg>';
 
@@ -565,6 +566,8 @@ let ultimos = [], abertas = [], periodoDados = [], atrasadosAntes = [], pagAbert
 const diasMarcados = new Map();
 const rolar = el => el.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
 const valorDe = p => Number(p.valor_cobrado || 0);
+const taxaDe = p => Number(p.taxa_desgaste || 0);
+const r2 = x => Math.round(x * 100) / 100;
 let resultado = "concluida", veiculoUsado = "carro";
 const $ = id => document.getElementById(id);
 
@@ -601,6 +604,8 @@ function atualizaPreco(){
   const notas = [];
   if (c.iv && c.ida != null) notas.push("Ida " + brlc(c.ida) + " + volta " + brlc(c.volta) + ".");
   if (c.aplicado) notas.push("Valor mínimo desta região aplicado. Cotação informada: " + brlc(c.q) + ".");
+  const tx = Number(ajustesCx.taxa_desgaste_pct) || 0;
+  if (tx > 0 && c.final != null) { const fee = r2(c.final * tx / 100); notas.push("Taxa de desgaste (" + String(tx).replace(".", ",") + "%): + " + brlc(fee) + ". Total com taxa: " + brlc(c.final + fee) + "."); }
   $("valorNota").textContent = notas.join(" ");
   $("valorNota").classList.toggle("hide", !notas.length);
 }
@@ -815,7 +820,7 @@ function entra(p){
   $("btnAjustes").classList.toggle("hide", p !== "entregador");
   $("relSolicitar").classList.toggle("hide", p !== "entregador");
   carregaZonas();
-  if (p === "entregador") carregaAjustes();
+  carregaAjustes();
   if (p === "loja") { iniciaForm(); carregaHistorico(); }
   carregaPedidos();
   timer = setInterval(carregaPedidos, 30000);
@@ -916,8 +921,8 @@ async function carregaAjustes(){
   const { data, error } = await db.from("ajustes").select("*").limit(1);
   if (error || !data || !data[0]) return;
   const a = data[0];
-  ajustesCx = { preco_litro: Number(a.preco_litro), consumo_carro: Number(a.consumo_carro), consumo_moto: Number(a.consumo_moto), fator_km: Number(a.fator_km), abastecimento_alvo: Number(a.abastecimento_alvo != null ? a.abastecimento_alvo : 45) };
-  pintaResumo(); pintaReserva();
+  ajustesCx = { preco_litro: Number(a.preco_litro), consumo_carro: Number(a.consumo_carro), consumo_moto: Number(a.consumo_moto), fator_km: Number(a.fator_km), abastecimento_alvo: Number(a.abastecimento_alvo != null ? a.abastecimento_alvo : 45), taxa_desgaste_pct: Number(a.taxa_desgaste_pct != null ? a.taxa_desgaste_pct : 0) };
+  pintaResumo(); pintaReserva(); atualizaPreco();
 }
 
 function estimaGasolina(lista){
@@ -1001,34 +1006,42 @@ function pintaCaixa(r){
   const a = ajustesCx;
   const e = estimaGasolina(r.ok);
   const km = e.km, lit = e.lit, sem = e.sem, gas = e.gas;
-  const lucro = Math.round((r.total - gas) * 100) / 100;
-  const pct = r.total > 0 ? Math.round(gas / r.total * 100) : 0;
+  const lucro = r2(r.total - gas);
+  const tot = r.totalComTaxa;
+  const pg = tot > 0 ? Math.round(gas / tot * 100) : 0;
+  const pd = tot > 0 ? Math.round(r.taxa / tot * 100) : 0;
+  const pl = tot > 0 ? Math.max(0, 100 - pg - pd) : 0;
   $("relCaixaCorpo").innerHTML = `
     <div class="sec" style="margin-top:0">Caixa do período</div>
-    <div class="row">
-      <div class="stat"><span>Separar para gasolina</span><b>${brlc(gas)}</b></div>
-      <div class="stat okk"><span>Lucro para manter</span><b style="${lucro < 0 ? "color:var(--bad)" : ""}">${brlc(lucro)}</b></div>
+    <div class="stats stats3" style="margin-bottom:10px">
+      <div class="stat"><span>Gasolina</span><b>${brlc(gas)}</b></div>
+      <div class="stat"><span>Desgaste</span><b>${brlc(r.taxa)}</b></div>
+      <div class="stat okk"><span>Lucro</span><b style="${lucro < 0 ? "color:var(--bad)" : ""}">${brlc(lucro)}</b></div>
     </div>
-    <div class="hint">De ${brlc(r.total)} em corridas: gasolina ${pct}% · lucro ${r.total > 0 ? 100 - pct : 0}%.</div>
+    <div class="hint">De ${brlc(tot)} recebíveis: gasolina ${pg}% · desgaste ${pd}% · lucro ${pl}%. Separe a gasolina e o desgaste; o lucro é seu.</div>
     <div class="hint">Estimativa de ${Math.round(km)} km e ${lit.toFixed(1).replace(".", ",")} litros a ${brlc(a.preco_litro)} o litro (carro ${String(a.consumo_carro).replace(".", ",")} km/l, moto ${String(a.consumo_moto).replace(".", ",")} km/l).${sem ? " " + sem + " entrega(s) sem região usaram a distância média." : ""}</div>`;
 }
 
 
 function resumoPeriodo(){
   const ok = periodoDados.filter(p => p.status === "concluida");
-  const total = ok.reduce((s,p) => s + valorDe(p), 0);
-  const pago = ok.reduce((s,p) => s + (p.pago_em ? valorDe(p) : 0), 0);
+  const bruto = p => valorDe(p) + taxaDe(p);
+  const total = r2(ok.reduce((s,p) => s + valorDe(p), 0));
+  const taxa = r2(ok.reduce((s,p) => s + taxaDe(p), 0));
+  const totalComTaxa = r2(total + taxa);
+  const pago = r2(ok.reduce((s,p) => s + (p.pago_em ? bruto(p) : 0), 0));
   const elegiveis = ok.filter(p => !p.pago_em && !p.pagamento_id);
-  const disponivel = elegiveis.reduce((s,p) => s + valorDe(p), 0);
-  const solicitado = ok.filter(p => !p.pago_em && p.pagamento_id).reduce((s,p) => s + valorDe(p), 0);
-  return { ok, total, pago, aReceber: total - pago, elegiveis, disponivel, solicitado };
+  const disponivel = r2(elegiveis.reduce((s,p) => s + bruto(p), 0));
+  const taxaDisp = r2(elegiveis.reduce((s,p) => s + taxaDe(p), 0));
+  const solicitado = r2(ok.filter(p => !p.pago_em && p.pagamento_id).reduce((s,p) => s + bruto(p), 0));
+  return { ok, total, taxa, totalComTaxa, pago, aReceber: r2(totalComTaxa - pago), elegiveis, disponivel, taxaDisp, solicitado };
 }
 
 function pintaPag(){
   const courier = papel === "entregador";
   $("relPag").innerHTML = pagAbertos.map(p => `<div class="card" style="padding:16px;border-color:var(--gold)">
     <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px"><b>Pagamento solicitado</b><span class="pill warn">aguardando</span></div>
-    <div class="sub" style="margin-top:6px">${esc(fmtData(new Date(p.periodo_inicio + "T00:00:00")))} a ${esc(fmtData(new Date(p.periodo_fim + "T00:00:00")))} · ${esc(p.qtd)} entrega(s) · ${brlc(p.valor)}</div>
+    <div class="sub" style="margin-top:6px">${esc(fmtData(new Date(p.periodo_inicio + "T00:00:00")))} a ${esc(fmtData(new Date(p.periodo_fim + "T00:00:00")))} · ${esc(p.qtd)} entrega(s) · ${brlc(p.valor)}${Number(p.valor_taxa) > 0 ? " (inclui taxa de desgaste " + brlc(p.valor_taxa) + ")" : ""}</div>
     <div class="pixbox"><div class="sub">Pagar por Pix · chave aleatória</div><div class="pixkey">${esc(PIX.chave)}</div>
       <div class="row" style="margin-top:10px"><button data-pixkey>Copiar chave</button><button class="primary" data-pixcc="${esc(p.valor)}">Copiar Pix com valor</button></div></div>
     ${courier ? `<button class="ok" style="margin-top:12px" data-pago="${esc(p.id)}">${IC_OK}Marcar como pago</button>` : ""}
@@ -1045,15 +1058,15 @@ function pintaResumo(){
   r.ok.forEach(p => {
     const d = dia0(p.horario_limite);
     if (mes) d.setDate(d.getDate() - ((d.getDay()+6)%7));
-    const k = d.getTime(); qb[k] = qb[k] || { n: 0, v: 0 }; qb[k].n++; qb[k].v += valorDe(p);
+    const k = d.getTime(); qb[k] = qb[k] || { n: 0, v: 0 }; qb[k].n++; qb[k].v += valorDe(p) + taxaDe(p);
   });
   const ks = Object.keys(qb).map(Number).sort((x,y) => x - y);
   const linhas = ks.map(k => ({ rot: mes ? "Semana de " + fmtData(new Date(k)) : fmtDataLonga(new Date(k)), n: qb[k].n, v: qb[k].v }));
   $("relResumo").innerHTML = `
     <div class="sub">${esc(rotuloPeriodo(a,b))}</div>
-    <div class="total-lbl">Total ${mes ? "do mês" : "da semana"}</div>
-    <div class="total-val">${brlc(r.total)}</div>
-    <div class="sub">${r.ok.length} entrega(s) concluída(s)</div>
+    <div class="total-lbl">Total ${mes ? "do mês" : "da semana"}${r.taxa > 0 ? " a pagar" : ""}</div>
+    <div class="total-val">${brlc(r.totalComTaxa)}</div>
+    <div class="sub">${r.ok.length} entrega(s) concluída(s)${r.taxa > 0 ? " · corridas " + brlc(r.total) + " + taxa de desgaste " + brlc(r.taxa) : ""}</div>
     <div class="row" style="margin:16px 0 4px">
       <div class="stat"><span>A receber</span><b>${brlc(r.aReceber)}</b></div>
       <div class="stat"><span>Pago</span><b>${brlc(r.pago)}</b></div>
@@ -1064,13 +1077,14 @@ function pintaResumo(){
   if (papel === "entregador") {
     const btn = $("relSolicitar");
     btn.disabled = r.disponivel <= 0;
-    btn.textContent = r.disponivel > 0 ? "Solicitar pagamento · " + brlc(r.disponivel) : "Nada a solicitar neste período";
+    btn.textContent = r.disponivel > 0 ? "Solicitar pagamento · " + brlc(r.disponivel) + (r.taxaDisp > 0 ? " (com taxa)" : "") : "Nada a solicitar neste período";
   }
   pintaPag();
   pintaCaixa(r);
   montaDoc(a, b, r);
   relTexto = "Palácio das Plumas · Entregas realizadas\n" + rotuloPeriodo(a,b)
-    + "\nTotal " + (mes ? "do mês" : "da semana") + ": " + brlc(r.total) + " (" + r.ok.length + " entrega(s))"
+    + "\nTotal " + (mes ? "do mês" : "da semana") + (r.taxa > 0 ? " a pagar" : "") + ": " + brlc(r.totalComTaxa) + " (" + r.ok.length + " entrega(s))"
+    + (r.taxa > 0 ? "\nCorridas: " + brlc(r.total) + " · Taxa de desgaste: " + brlc(r.taxa) : "")
     + "\nA receber: " + brlc(r.aReceber) + " · Pago: " + brlc(r.pago) + "\n"
     + linhas.map(l => "\n" + l.rot + ": " + l.n + " entrega(s), " + brlc(l.v)).join("")
     + "\n\nPix (chave aleatória): " + PIX.chave;
@@ -1091,7 +1105,7 @@ function montaDoc(a, b, r){
     h += `<tr><td>${esc(fmtData(new Date(p.horario_limite)))}</td><td>${horaBR(bx ? bx.concluida_em : p.horario_limite)}</td><td>${esc(p.endereco)}</td><td>${esc(bx && bx.recebido_por ? bx.recebido_por : p.destinatario)}</td><td>${esc(String(p.veiculo).replace("_"," "))}${p.ida_volta ? " (ida e volta)" : ""}</td><td class="r">${brlc(valorDe(p))}</td></tr>`;
   });
   fechaDia();
-  h += `</tbody><tfoot><tr class="tot"><td colspan="5">Total · ${r.ok.length} entrega(s)</td><td class="r">${brlc(r.total)}</td></tr></tfoot></table>`;
+  h += `</tbody><tfoot>${r.taxa > 0 ? `<tr class="sub-row"><td colspan="5">Corridas · ${r.ok.length} entrega(s)</td><td class="r">${brlc(r.total)}</td></tr><tr class="sub-row"><td colspan="5">Taxa de desgaste do veículo</td><td class="r">${brlc(r.taxa)}</td></tr>` : ""}<tr class="tot"><td colspan="5">Total a pagar${r.taxa > 0 ? "" : " · " + r.ok.length + " entrega(s)"}</td><td class="r">${brlc(r.totalComTaxa)}</td></tr></tfoot></table>`;
   if (!ordenados.length) h += "<p>Nenhuma entrega concluída neste período.</p>";
   h += `<p>Pago: ${brlc(r.pago)} · A receber: ${brlc(r.aReceber)}</p><p>Pagamento por Pix (chave aleatória): <b>${esc(PIX.chave)}</b></p>`;
   if (prob.length) h += "<p><b>Não concluídas (fora do total):</b> " + prob.map(p => esc(fmtData(new Date(p.horario_limite))) + " " + esc(p.endereco)).join("; ") + "</p>";
@@ -1102,11 +1116,11 @@ function montaDoc(a, b, r){
 async function solicitaPagamento(){
   const r = resumoPeriodo();
   if (!r.elegiveis.length) { msgRel("Nada a solicitar neste período."); return; }
-  if (!confirm("Solicitar " + brlc(r.disponivel) + " (" + r.elegiveis.length + " entrega(s)) para a loja?")) return;
+  if (!confirm("Solicitar " + brlc(r.disponivel) + " (" + r.elegiveis.length + " entrega(s)" + (r.taxaDisp > 0 ? ", com taxa de desgaste de " + brlc(r.taxaDisp) : "") + ") para a loja?")) return;
   const [a,b] = periodoRel(); const f = new Date(b); f.setDate(f.getDate() - 1);
   const { error } = await db.from("pagamentos").insert({
     periodo_inicio: isoDia(a), periodo_fim: isoDia(f),
-    qtd: r.elegiveis.length, valor: r.disponivel, pedidos_ids: r.elegiveis.map(p => p.id)
+    qtd: r.elegiveis.length, valor: r.disponivel, valor_taxa: r.taxaDisp, pedidos_ids: r.elegiveis.map(p => p.id)
   });
   if (error) { msgRel("Não foi possível registrar a solicitação."); return; }
   await carregaPedidos();
@@ -1194,14 +1208,15 @@ function abreAjustes(){
       <div><label>Distância de ida (km)</label><input data-min="k" data-id="${z.id}" inputmode="decimal" value="${f(z.km_ida)}"></div>
     </div></div>`).join("");
   $("aLitro").value = f(ajustesCx.preco_litro); $("aFator").value = f(ajustesCx.fator_km);
-  $("aCarro").value = f(ajustesCx.consumo_carro); $("aMoto").value = f(ajustesCx.consumo_moto); $("aAlvo").value = f(ajustesCx.abastecimento_alvo);
+  $("aCarro").value = f(ajustesCx.consumo_carro); $("aMoto").value = f(ajustesCx.consumo_moto); $("aAlvo").value = f(ajustesCx.abastecimento_alvo); $("aTaxa").value = f(ajustesCx.taxa_desgaste_pct);
   $("modalAjustes").classList.remove("hide");
 }
 async function salvaAjustes(){
   const erro = t => { $("minOk").classList.add("hide"); $("minErr").textContent = t; $("minErr").classList.remove("hide"); };
   const num = id => parseFloat($(id).value.replace(",", "."));
-  const aj = { preco_litro: num("aLitro"), fator_km: num("aFator"), consumo_carro: num("aCarro"), consumo_moto: num("aMoto"), abastecimento_alvo: num("aAlvo") };
+  const aj = { preco_litro: num("aLitro"), fator_km: num("aFator"), consumo_carro: num("aCarro"), consumo_moto: num("aMoto"), abastecimento_alvo: num("aAlvo"), taxa_desgaste_pct: num("aTaxa") };
   if (!isFinite(aj.abastecimento_alvo) || aj.abastecimento_alvo <= 0) return erro("Informe o valor de um abastecimento.");
+  if (!isFinite(aj.taxa_desgaste_pct) || aj.taxa_desgaste_pct < 0 || aj.taxa_desgaste_pct > 30) return erro("A taxa de desgaste deve ficar entre 0 e 30%.");
   if (!isFinite(aj.preco_litro) || aj.preco_litro <= 0) return erro("Informe o preço do litro.");
   if (!isFinite(aj.fator_km) || aj.fator_km < 0.5 || aj.fator_km > 4) return erro("Km rodados por km de ida deve ficar entre 0,5 e 4.");
   if (!isFinite(aj.consumo_carro) || aj.consumo_carro <= 0 || !isFinite(aj.consumo_moto) || aj.consumo_moto <= 0) return erro("Informe o consumo do carro e da moto.");
