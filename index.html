@@ -184,6 +184,11 @@ details.dia>summary b{flex:1;text-transform:capitalize}
 .qbs{margin-top:16px;border-top:1px solid var(--line)}
 .qb{display:flex;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid var(--line);font-size:15px}
 .qb span:first-child{text-transform:capitalize}
+.faixa{display:flex;align-items:center;gap:8px;margin-top:12px;padding:11px 14px;border-radius:12px;font-weight:600;font-size:15px}
+.faixa svg{width:16px;height:16px;flex:none}
+.faixa.ok{background:var(--ok);color:#fff}
+.faixa.warn{background:var(--warn-bg);color:var(--warn)}
+.faixa.gray{background:var(--track);color:var(--ink2)}
 .pills{display:flex;flex-direction:column;align-items:flex-end;gap:6px}
 .pill.gray{background:var(--track);color:var(--ink2)}
 .pill svg{width:12px;height:12px;vertical-align:-1px;margin-right:4px}
@@ -193,7 +198,7 @@ details.dia>summary b{flex:1;text-transform:capitalize}
 .toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:12px 18px;border-radius:999px;font-size:15px;z-index:60;max-width:90%;text-align:center;box-shadow:0 8px 24px rgba(0,0,0,.3)}
 .chk{display:flex;align-items:center;gap:10px;font-size:16px;color:var(--ink);margin:0}
 #docImpressao{display:none}
-@media (prefers-color-scheme: dark){ .mark.ok,.mark.bad{color:#0b1b12} }
+@media (prefers-color-scheme: dark){ .mark.ok,.mark.bad,.faixa.ok{color:#0b1b12} }
 @media print{
   html,body{background:#fff!important;color:#000!important}
   header.bar,.wrap,.modal,.toast,body::before{display:none!important}
@@ -676,12 +681,14 @@ function cardPedido(p, modo){
   const feita = p.status === "concluida", prob = p.status === "com_problema";
   const hoje = dia0(new Date()).getTime();
   const outroDia = (modo === "aberta" || modo === "antes") && dia0(p.horario_limite).getTime() !== hoje;
-  let cls = "", marca = "", badge = "", hora = horaBR(p.horario_limite);
+  let cls = "", marca = "", badge = "", faixa = "", hora = horaBR(p.horario_limite);
   if (feita) {
     cls = p.pago_em ? "done paid" : "done"; marca = `<span class="mark ok" role="img" aria-label="Entregue">${IC_CHECK}</span>`;
     if (b) hora = horaBR(b.concluida_em);
-    const pagoPill = p.pago_em ? `<span class="pill ok">${IC_CHECK}Paga</span>` : (p.pagamento_id ? '<span class="pill warn">Pagamento solicitado</span>' : '<span class="pill gray">Pagamento pendente</span>');
-    badge = `<div class="pills"><span class="pill ok">Entregue</span>${pagoPill}</div>`;
+    badge = `<span class="pill ok">Entregue</span>`;
+    faixa = p.pago_em ? `<div class="faixa ok">${IC_CHECK}Entregue e paga</div>`
+      : (p.pagamento_id ? `<div class="faixa warn">${IC_CHECK}Entregue · pagamento solicitado</div>`
+      : `<div class="faixa gray">${IC_CHECK}Entregue · pagamento pendente</div>`);
   } else if (prob) {
     cls = "prob"; marca = `<span class="mark bad" role="img" aria-label="Com problema">!</span>`;
     badge = `<span class="pill bad">${esc(b ? b.motivo_problema : "problema")}</span>`;
@@ -706,6 +713,7 @@ function cardPedido(p, modo){
       <div class="meta">${meta}</div>
       ${feita && b && b.recebido_por ? `<div class="recebido">Recebido por ${esc(b.recebido_por)}</div>` : ""}
       ${feita && p.pago_em ? `<div class="meta">Pagamento recebido em ${esc(fmtData(new Date(p.pago_em)))}</div>` : ""}
+      ${faixa}
       ${p.observacoes && p.observacoes !== "Registrada depois" ? `<div class="meta">${esc(p.observacoes)}</div>` : ""}
       ${acts}${acts2}
     </div>`;
