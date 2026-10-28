@@ -706,7 +706,10 @@ function cardPedido(p, modo){
         <a href="#" data-baixa="${esc(p.id)}" data-end="${esc(p.endereco)}" data-dest="${esc(p.destinatario)}"><button class="ok">${IC_OK}Dar baixa</button></a>
       </div>`;
   }
-  const acts2 = `<div class="acts2"><button class="ghost small" data-edit="${esc(p.id)}">Editar</button>${papel === "loja" ? `<button class="ghost small" data-rep="${esc(p.id)}">Repetir</button>` : ""}</div>`;
+  const btnPaga = papel !== "entregador" || !feita ? "" : (p.pago_em
+    ? `<button class="ghost small" data-despaga="${esc(p.id)}" style="color:var(--bad)">Desfazer pagamento</button>`
+    : (!p.pagamento_id ? `<button class="ok small" data-paga="${esc(p.id)}">${IC_OK}Marcar como paga</button>` : ""));
+  const acts2 = `<div class="acts2"><button class="ghost small" data-edit="${esc(p.id)}">Editar</button>${papel === "loja" ? `<button class="ghost small" data-rep="${esc(p.id)}">Repetir</button>` : ""}${btnPaga}</div>`;
   return `<div class="item ${cls}">
       <div class="top"><div class="lhs">${marca}<span class="hora">${hora}</span>${quando}</div>${badge}</div>
       <div class="end">${esc(p.endereco)}</div>
@@ -1160,6 +1163,21 @@ async function registraPagoDireto(){
   toast("Pagamento registrado.");
 }
 
+async function marcaCorridaPaga(id){
+  const p = ultimos.find(x => x.id === id); if (!p) return;
+  if (!confirm("Marcar esta corrida (" + brlc(valorDe(p) + taxaDe(p)) + ") como paga?")) return;
+  const dia = isoDia(new Date(p.horario_limite));
+  const { error } = await db.rpc("registrar_pagamento_recebido", { p_ids: [id], p_inicio: dia, p_fim: dia });
+  if (error) { toast("Não foi possível marcar."); return; }
+  await carregaPedidos(); toast("Corrida marcada como paga.");
+}
+async function desfazPagamento(id){
+  if (!confirm("Desfazer o pagamento desta corrida? Ela volta a aparecer com pagamento pendente.")) return;
+  const { error } = await db.rpc("desfazer_pagamento_corrida", { p_id: id });
+  if (error) { toast("Não foi possível desfazer."); return; }
+  await carregaPedidos(); toast("Pagamento desfeito.");
+}
+
 async function marcaPago(id){
   if (!confirm("Confirmar que você recebeu este pagamento?")) return;
   const { error } = await db.from("pagamentos").update({ status: "pago", pago_em: new Date().toISOString() }).eq("id", id);
@@ -1331,6 +1349,8 @@ document.addEventListener("click", ev => { if (!ev.target.closest("#busca") && !
 function ligaAcoes(){
   document.querySelectorAll("[data-edit]").forEach(b => { b.onclick = () => abreEdit(b.dataset.edit); });
   document.querySelectorAll("[data-rep]").forEach(b => { b.onclick = () => repetePedido(b.dataset.rep); });
+  document.querySelectorAll("[data-paga]").forEach(b => { b.onclick = () => marcaCorridaPaga(b.dataset.paga); });
+  document.querySelectorAll("[data-despaga]").forEach(b => { b.onclick = () => desfazPagamento(b.dataset.despaga); });
   document.querySelectorAll("[data-baixa]").forEach(a => { a.onclick = e => { e.preventDefault(); abreBaixa(a.dataset.baixa, a.dataset.end, a.dataset.dest); }; });
 }
 function eAtualiza(){
