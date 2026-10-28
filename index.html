@@ -184,6 +184,7 @@ details.dia>summary b{flex:1;text-transform:capitalize}
 .qbs{margin-top:16px;border-top:1px solid var(--line)}
 .qb{display:flex;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid var(--line);font-size:15px}
 .qb span:first-child{text-transform:capitalize}
+.chk{display:flex;align-items:center;gap:10px;font-size:16px;color:var(--ink);margin:0}
 #docImpressao{display:none}
 @media (prefers-color-scheme: dark){ .mark.ok,.mark.bad{color:#0b1b12} }
 @media print{
@@ -294,6 +295,8 @@ details.dia>summary b{flex:1;text-transform:capitalize}
         <button data-v="tanto_faz" aria-pressed="true">Tanto faz</button>
       </div>
       <div class="err hide" id="motoErr">Essa região só atende de carro.</div>
+      <label class="chk" style="margin-top:16px"><input type="checkbox" id="idaVolta"> Ida e volta (pagar a volta)</label>
+      <div class="hint">Use quando o entregador precisa voltar. A volta é somada ao valor da ida.</div>
       <div class="sec">Cotação</div>
       <div class="field">
         <label for="cotApp">Aplicativo da cotação</label>
@@ -387,6 +390,7 @@ details.dia>summary b{flex:1;text-transform:capitalize}
         <button data-ev="tanto_faz" aria-pressed="false">Tanto faz</button>
       </div>
     </div>
+    <label class="chk" style="margin:0 0 16px"><input type="checkbox" id="eIV"> Ida e volta (pagar a volta)</label>
     <div class="row">
       <div class="field"><label for="eApp">Aplicativo</label><input id="eApp" list="appsCot" autocomplete="off"></div>
       <div class="field"><label for="eCot">Valor da cotação</label><input id="eCot" inputmode="decimal"></div>
@@ -519,7 +523,7 @@ const BAIRROS = {
 };
 
 let papel = null, zonas = [], veiculo = "tanto_faz", pedidoAtual = null, timer = null;
-let ultimos = [], abertas = [], periodoDados = [], atrasadosAntes = [], pagAbertos = [], historico = [], sugAtual = [], edP = null, eVeic = "carro";
+let ultimos = [], abertas = [], periodoDados = [], atrasadosAntes = [], pagAbertos = [], historico = [], sugAtual = [], edP = null, eVeic = "carro", eVolta = 0;
 const diasMarcados = new Map();
 const rolar = el => el.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
 const valorDe = p => Number(p.valor_cobrado || 0);
@@ -540,9 +544,14 @@ function zonaAtual(){ return zonas.find(z => z.id === Number($("zona").value)); 
 function minimoDe(z, v){ if (!z) return null; return v === "moto" ? z.valor_moto : z.valor_fixo; }
 function calcValor(){
   const q = parseFloat(($("cotValor").value || "").replace(",", "."));
-  const min = minimoDe(zonaAtual(), veiculo);
+  const z = zonaAtual();
+  const min = minimoDe(z, veiculo);
   const valido = isFinite(q) && q > 0;
-  return { q, min, final: valido ? Math.max(q, min || 0) : null, aplicado: valido && min != null && q < min };
+  const iv = $("idaVolta").checked;
+  const pct = z && z.pct_volta != null ? Number(z.pct_volta) : 100;
+  const ida = valido ? Math.max(q, min || 0) : null;
+  const volta = ida != null && iv ? Math.round(ida * pct) / 100 : 0;
+  return { q, min, ida, volta, iv, final: ida == null ? null : Math.round((ida + volta) * 100) / 100, aplicado: valido && min != null && q < min };
 }
 function atualizaPreco(){
   const z = zonaAtual();
@@ -551,10 +560,11 @@ function atualizaPreco(){
   else if (!semMoto) { $("motoErr").classList.add("hide"); }
   const c = calcValor();
   $("valor").textContent = c.final == null ? "R$ 0" : brlc(c.final);
-  if (c.aplicado) {
-    $("valorNota").textContent = "Valor mínimo desta região aplicado. Cotação informada: " + brlc(c.q) + ".";
-    $("valorNota").classList.remove("hide");
-  } else { $("valorNota").classList.add("hide"); }
+  const notas = [];
+  if (c.iv && c.ida != null) notas.push("Ida " + brlc(c.ida) + " + volta " + brlc(c.volta) + ".");
+  if (c.aplicado) notas.push("Valor mínimo desta região aplicado. Cotação informada: " + brlc(c.q) + ".");
+  $("valorNota").textContent = notas.join(" ");
+  $("valorNota").classList.toggle("hide", !notas.length);
 }
 
 async function carregaZonas(){
@@ -629,7 +639,7 @@ function cardPedido(p, modo){
     badge = `<span class="pill ${r.cls === "late" ? "bad" : r.cls === "soon" ? "warn" : "accent"}">${p.status === "em_rota" ? "em rota · " : ""}${r.txt}</span>`;
   }
   const quando = outroDia ? ` <span class="sub">· ${esc(fmtData(new Date(p.horario_limite)))}</span>` : "";
-  const meta = esc(p.destinatario) + (p.telefone ? " · " + esc(p.telefone) : "") + " · " + brl(p.valor_cobrado) + " · " + esc(String(p.veiculo).replace("_", " ")) + (p.cotacao_app ? " · cotação " + esc(p.cotacao_app) : "");
+  const meta = esc(p.destinatario) + (p.telefone ? " · " + esc(p.telefone) : "") + " · " + brl(p.valor_cobrado) + " · " + esc(String(p.veiculo).replace("_", " ")) + (p.ida_volta ? " · ida e volta" : "") + (p.cotacao_app ? " · cotação " + esc(p.cotacao_app) : "");
   let acts = "";
   if (modo === "aberta") {
     acts = `<div class="acts">
@@ -737,11 +747,12 @@ async function criaPedido(){
     telefone: $("telefone").value.trim() || null,
     horario_limite: d.toISOString(), veiculo,
     valor_cobrado: c.final, cotacao_app: app, cotacao_valor: c.q,
+    ida_volta: c.iv, valor_volta: c.iv ? c.volta : null,
     observacoes: $("obs").value.trim() || null
   });
   if (r.error) return erro("Erro ao criar. Tente de novo.");
   $("endereco").value = ""; $("destinatario").value = ""; $("telefone").value = "";
-  $("limite").value = ""; $("obs").value = ""; $("cotValor").value = ""; $("zona").value = "";
+  $("limite").value = ""; $("obs").value = ""; $("cotValor").value = ""; $("zona").value = ""; $("idaVolta").checked = false;
   iniciaForm(); carregaHistorico();
   atualizaPreco();
   $("criaErr").classList.add("hide");
@@ -782,6 +793,7 @@ $("pin").onkeydown = e => { if (e.key === "Enter") $("btnEntrar").click(); };
 $("btnSair").onclick = () => { sessionStorage.removeItem("papel"); location.reload(); };
 
 $("cotValor").oninput = atualizaPreco;
+$("idaVolta").onchange = atualizaPreco;
 $("endereco").oninput = () => {
   const z = detectaZona($("endereco").value);
   if (z && zonas.some(x => x.id === z)) { $("zona").value = String(z); atualizaPreco(); }
@@ -898,7 +910,7 @@ function montaDoc(a, b, r){
     if (k !== dia) { fechaDia(); dia = k; sub = 0; nDia = 0; }
     const bx = p.baixas && p.baixas[0];
     sub += valorDe(p); nDia++;
-    h += `<tr><td>${esc(fmtData(new Date(p.horario_limite)))}</td><td>${horaBR(bx ? bx.concluida_em : p.horario_limite)}</td><td>${esc(p.endereco)}</td><td>${esc(bx && bx.recebido_por ? bx.recebido_por : p.destinatario)}</td><td>${esc(String(p.veiculo).replace("_"," "))}</td><td class="r">${brlc(valorDe(p))}</td></tr>`;
+    h += `<tr><td>${esc(fmtData(new Date(p.horario_limite)))}</td><td>${horaBR(bx ? bx.concluida_em : p.horario_limite)}</td><td>${esc(p.endereco)}</td><td>${esc(bx && bx.recebido_por ? bx.recebido_por : p.destinatario)}</td><td>${esc(String(p.veiculo).replace("_"," "))}${p.ida_volta ? " (ida e volta)" : ""}</td><td class="r">${brlc(valorDe(p))}</td></tr>`;
   });
   fechaDia();
   h += `</tbody><tfoot><tr class="tot"><td colspan="5">Total · ${r.ok.length} entrega(s)</td><td class="r">${brlc(r.total)}</td></tr></tfoot></table>`;
@@ -998,7 +1010,8 @@ function abreAjustes(){
     <div class="row">
       <div><label>Carro</label><input data-min="c" data-id="${z.id}" inputmode="decimal" value="${f(z.valor_fixo)}"></div>
       <div><label>Moto</label><input data-min="m" data-id="${z.id}" inputmode="decimal" value="${f(z.valor_moto)}" placeholder="só carro"></div>
-    </div></div>`).join("");
+    </div>
+    <div style="margin-top:10px"><label>Volta, % do valor da ida</label><input data-min="v" data-id="${z.id}" inputmode="decimal" value="${f(z.pct_volta == null ? 100 : z.pct_volta)}"></div></div>`).join("");
   $("modalAjustes").classList.remove("hide");
 }
 async function salvaAjustes(){
@@ -1010,9 +1023,11 @@ async function salvaAjustes(){
     const m = mTxt === "" ? null : parseFloat(mTxt.replace(",", "."));
     if (!isFinite(c) || c <= 0) return erro("Informe o valor do carro em " + z.nome + ".");
     if (m !== null && (!isFinite(m) || m <= 0)) return erro("Valor da moto inválido em " + z.nome + ".");
-    lote.push({ id: z.id, valor_fixo: c, valor_moto: m });
+    const v = parseFloat(document.querySelector(`[data-min="v"][data-id="${z.id}"]`).value.replace(",", "."));
+    if (!isFinite(v) || v < 0 || v > 200) return erro("Percentual da volta inválido em " + z.nome + ".");
+    lote.push({ id: z.id, valor_fixo: c, valor_moto: m, pct_volta: v });
   }
-  const rs = await Promise.all(lote.map(l => db.from("bairros").update({ valor_fixo: l.valor_fixo, valor_moto: l.valor_moto }).eq("id", l.id)));
+  const rs = await Promise.all(lote.map(l => db.from("bairros").update({ valor_fixo: l.valor_fixo, valor_moto: l.valor_moto, pct_volta: l.pct_volta }).eq("id", l.id)));
   if (rs.some(r => r && r.error)) return erro("Não foi possível salvar. Tente de novo.");
   $("minErr").classList.add("hide"); $("minOk").classList.remove("hide");
   await carregaZonas();
@@ -1028,7 +1043,7 @@ const semAcento = s => String(s || "").normalize("NFD").replace(/[\u0300-\u036f]
 function entradaDe(p, n){
   return { endereco: p.endereco, destinatario: p.destinatario, telefone: p.telefone || "", bairro_id: p.bairro_id,
     veiculo: p.veiculo, app: p.cotacao_app || "", valor: (p.cotacao_valor != null ? p.cotacao_valor : p.valor_cobrado),
-    obs: p.observacoes === "Registrada depois" ? "" : (p.observacoes || ""), n: n || 1 };
+    obs: p.observacoes === "Registrada depois" ? "" : (p.observacoes || ""), idaVolta: !!p.ida_volta && p.cotacao_valor != null, n: n || 1 };
 }
 async function carregaHistorico(){
   const { data, error } = await db.from("pedidos")
@@ -1049,7 +1064,7 @@ function mostraBusca(){
   sugAtual = historico.filter(e => { const alvo = semAcento(e.destinatario + " " + e.endereco); return toks.every(k => alvo.includes(k)); })
     .slice(0, toks.length ? 6 : 5);
   $("buscaRes").innerHTML = sugAtual.length
-    ? sugAtual.map((e, i) => `<div class="sug" role="button" data-h="${i}"><b>${esc(e.destinatario)}</b><span class="sub"> · ${e.n} pedido(s)</span><div class="sub">${esc(e.endereco)}</div><div class="sub">${esc(String(e.veiculo).replace("_", " "))}${e.app ? " · " + esc(e.app) : ""}${e.valor ? " · " + brlc(e.valor) : ""}</div></div>`).join("")
+    ? sugAtual.map((e, i) => `<div class="sug" role="button" data-h="${i}"><b>${esc(e.destinatario)}</b><span class="sub"> · ${e.n} pedido(s)</span><div class="sub">${esc(e.endereco)}</div><div class="sub">${esc(String(e.veiculo).replace("_", " "))}${e.idaVolta ? " · ida e volta" : ""}${e.app ? " · " + esc(e.app) : ""}${e.valor ? " · " + brlc(e.valor) : ""}</div></div>`).join("")
     : (toks.length ? '<div class="hint">Nada encontrado.</div>' : "");
 }
 function preencheDe(e){
@@ -1058,7 +1073,7 @@ function preencheDe(e){
   $("zona").value = zid && zonas.some(z => z.id === zid) ? String(zid) : "";
   veiculo = e.veiculo; pintaSeg("segVeiculo", "v", veiculo);
   $("cotApp").value = e.app || ""; $("cotValor").value = e.valor ? String(e.valor).replace(".", ",") : "";
-  $("obs").value = e.obs || ""; $("limite").value = ""; iniciaForm();
+  $("obs").value = e.obs || ""; $("idaVolta").checked = !!e.idaVolta; $("limite").value = ""; iniciaForm();
   $("busca").value = ""; $("buscaRes").innerHTML = "";
   atualizaPreco(); $("limite").focus();
 }
@@ -1088,11 +1103,17 @@ function eAtualiza(){
   const q = parseFloat(($("eCot").value || "").replace(",", "."));
   const min = minimoDe(z, eVeic);
   const valido = isFinite(q) && q > 0;
-  const fin = trava ? Number(p.valor_cobrado) : (valido ? Math.max(q, min || 0) : null);
+  const iv = $("eIV").checked;
+  const pct = z && z.pct_volta != null ? Number(z.pct_volta) : 100;
+  const ida = valido ? Math.max(q, min || 0) : null;
+  eVolta = ida != null && iv ? Math.round(ida * pct) / 100 : 0;
+  const fin = trava ? Number(p.valor_cobrado) : (ida == null ? null : Math.round((ida + eVolta) * 100) / 100);
   $("eValor").textContent = fin == null ? "R$ 0" : brlc(fin);
-  const aplicado = !trava && valido && min != null && q < min;
-  $("eNota").textContent = aplicado ? "Valor mínimo desta região aplicado. Cotação informada: " + brlc(q) + "." : "";
-  $("eNota").classList.toggle("hide", !aplicado);
+  const notas = [];
+  if (!trava && iv && ida != null) notas.push("Ida " + brlc(ida) + " + volta " + brlc(eVolta) + ".");
+  if (!trava && valido && min != null && q < min) notas.push("Valor mínimo desta região aplicado. Cotação informada: " + brlc(q) + ".");
+  $("eNota").textContent = notas.join(" ");
+  $("eNota").classList.toggle("hide", !notas.length);
   return fin;
 }
 function abreEdit(id){
@@ -1112,8 +1133,9 @@ function abreEdit(id){
   $("eZona").innerHTML = (p.bairro_id ? "" : '<option value="">Sem região (valor manual)</option>') + zonas.map(z => `<option value="${z.id}">${esc(z.nome)}</option>`).join("");
   $("eZona").value = p.bairro_id ? String(p.bairro_id) : "";
   eVeic = p.veiculo; pintaSeg("segEdit", "ev", eVeic);
+  $("eIV").checked = !!p.ida_volta;
   const trava = !!(p.pago_em || p.pagamento_id);
-  ["eZona", "eCot"].forEach(i => { $(i).disabled = trava; });
+  ["eZona", "eCot", "eIV"].forEach(i => { $(i).disabled = trava; });
   document.querySelectorAll("#segEdit button").forEach(x => { x.disabled = trava; });
   $("eTrava").textContent = "Valor e veículo travados: já existe pagamento solicitado ou pago para esta entrega.";
   $("eTrava").classList.toggle("hide", !trava);
@@ -1139,7 +1161,8 @@ async function salvaEdit(){
     const fin = eAtualiza();
     if (fin == null) return erro("Informe o valor da cotação.");
     Object.assign(patch, { bairro_id: z ? z.id : null, veiculo: eVeic,
-      cotacao_valor: parseFloat($("eCot").value.replace(",", ".")), valor_cobrado: fin });
+      cotacao_valor: parseFloat($("eCot").value.replace(",", ".")), valor_cobrado: fin,
+      ida_volta: $("eIV").checked, valor_volta: $("eIV").checked ? eVolta : null });
   }
   patch.horario_limite = quando.toISOString();
   const r = await db.from("pedidos").update(patch).eq("id", p.id);
@@ -1158,7 +1181,7 @@ async function salvaEdit(){
 }
 $("eFechar").onclick = () => $("modalEdit").classList.add("hide");
 $("eSalvar").onclick = salvaEdit;
-$("eZona").onchange = eAtualiza; $("eCot").oninput = eAtualiza;
+$("eZona").onchange = eAtualiza; $("eCot").oninput = eAtualiza; $("eIV").onchange = eAtualiza;
 document.querySelectorAll("#segEdit button").forEach(b => { b.onclick = () => { eVeic = b.dataset.ev; pintaSeg("segEdit", "ev", eVeic); eAtualiza(); }; });
 
 $("verSenha").onchange = e => { $("pin").type = e.target.checked ? "text" : "password"; };
