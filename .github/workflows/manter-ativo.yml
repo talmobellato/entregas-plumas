@@ -1,0 +1,17 @@
+name: Manter projeto ativo
+
+on:
+  schedule:
+    - cron: "0 12 * * *"
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Consulta leve ao banco
+        run: |
+          curl -s -o /dev/null -w "%{http_code}\n" \
+            "https://tfcjhrkykjxmrqmtmnzt.supabase.co/rest/v1/bairros?select=id&limit=1" \
+            -H "apikey: sb_publishable_hMFjx1Uof1KDkTyNqk7vnQ_0tk-jA9y" \
+            -H "Authorization: Bearer sb_publishable_hMFjx1Uof1KDkTyNqk7vnQ_0tk-jA9y"
