@@ -360,6 +360,7 @@ details.dia>summary b{flex:1;text-transform:capitalize}
     <div class="card" id="relResumo"></div>
     <div class="card hide" id="relCaixa" data-role="entregador">
       <div id="relCaixaCorpo"></div>
+      <div id="relReserva" style="margin-top:20px"></div>
       <button class="ghost small" id="btnCaixaAj" style="margin-top:12px">Ajustar cálculo</button>
     </div>
     <button class="primary hide" id="relSolicitar">Solicitar pagamento</button>
@@ -415,6 +416,21 @@ details.dia>summary b{flex:1;text-transform:capitalize}
   </div>
 </div>
 
+<div class="modal hide" id="modalAbast">
+  <div class="card">
+    <h2>Registrar abastecimento</h2>
+    <div class="row">
+      <div class="field"><label for="abValor">Valor (R$)</label><input id="abValor" inputmode="decimal" placeholder="0,00"></div>
+      <div class="field"><label for="abData">Dia</label><input id="abData" type="date"></div>
+    </div>
+    <div class="err hide" id="abErr"></div>
+    <div class="row" style="margin-top:6px">
+      <button class="ghost" id="abFechar">Cancelar</button>
+      <button class="primary" id="abSalvar">Salvar</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal hide" id="modalAjustes">
   <div class="card">
     <h2>Ajustes</h2>
@@ -427,6 +443,7 @@ details.dia>summary b{flex:1;text-transform:capitalize}
       <div class="field"><label for="aCarro">Carro (km por litro)</label><input id="aCarro" inputmode="decimal"></div>
       <div class="field"><label for="aMoto">Moto (km por litro)</label><input id="aMoto" inputmode="decimal"></div>
     </div>
+    <div class="field"><label for="aAlvo">Valor de um abastecimento (R$)</label><input id="aAlvo" inputmode="decimal"></div>
     <div class="hint" style="margin:-6px 0 4px">Com ida e volta o fator é 2. Se você encadeia entregas e volta menos, use um número menor.</div>
     <div class="sec">Valores mínimos por região</div>
     <p class="sub" style="margin:-4px 0 12px">Nenhuma entrega é cobrada abaixo destes valores, mesmo que a cotação da loja seja menor.</p>
@@ -529,7 +546,7 @@ const LOGO = "data:image/webp;base64,UklGRvo7AABXRUJQVlA4WAoAAAAQAAAA2wAA2wAAQUx
 document.querySelectorAll("img[data-logo]").forEach(i => { i.src = LOGO; });
 const IC_ROTA = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l18-8-8 18-2-8-8-2z"/></svg>';
 const PIX = { chave: "144a9bfa-b079-44e8-b7af-6406c1e24112", nome: "TALMO BELLATO", cidade: "SAO PAULO" };
-let ajustesCx = { preco_litro: 6.4, consumo_carro: 10, consumo_moto: 30, fator_km: 2 };
+let ajustesCx = { preco_litro: 6.4, consumo_carro: 10, consumo_moto: 30, fator_km: 2, abastecimento_alvo: 45 };
 const IC_CHECK = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg>';
 const IC_OK = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg>';
 
@@ -544,7 +561,7 @@ const BAIRROS = {
 };
 
 let papel = null, zonas = [], veiculo = "tanto_faz", pedidoAtual = null, timer = null;
-let ultimos = [], abertas = [], periodoDados = [], atrasadosAntes = [], pagAbertos = [], historico = [], sugAtual = [], edP = null, eVeic = "carro", eVolta = 0;
+let ultimos = [], abertas = [], periodoDados = [], atrasadosAntes = [], pagAbertos = [], historico = [], sugAtual = [], edP = null, eVeic = "carro", eVolta = 0, reservaDados = { rides: [], abast: [] }, reservaTs = 0;
 const diasMarcados = new Map();
 const rolar = el => el.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
 const valorDe = p => Number(p.valor_cobrado || 0);
@@ -596,6 +613,7 @@ async function carregaZonas(){
   $("zona").innerHTML = '<option value="">Escolha a região</option>' + data.map(z => `<option value="${z.id}">${esc(z.nome)}</option>`).join("");
   if (antes) $("zona").value = antes;
   atualizaPreco();
+  pintaReserva();
 }
 
 function pintaSeg(wrapId, attr, val){
@@ -639,6 +657,7 @@ async function carregaPedidos(){
   abertas = (rab && rab.data) || [];
   ultimos = atrasadosAntes.concat(periodoDados, abertas);
   pintaAbertas(); pintaHist(); pintaResumo();
+  if (papel === "entregador" && Date.now() - reservaTs > 60000) carregaReserva();
 }
 
 function cardPedido(p, modo){
@@ -897,25 +916,91 @@ async function carregaAjustes(){
   const { data, error } = await db.from("ajustes").select("*").limit(1);
   if (error || !data || !data[0]) return;
   const a = data[0];
-  ajustesCx = { preco_litro: Number(a.preco_litro), consumo_carro: Number(a.consumo_carro), consumo_moto: Number(a.consumo_moto), fator_km: Number(a.fator_km) };
-  if (typeof pintaResumo === "function" && periodoDados) pintaResumo();
+  ajustesCx = { preco_litro: Number(a.preco_litro), consumo_carro: Number(a.consumo_carro), consumo_moto: Number(a.consumo_moto), fator_km: Number(a.fator_km), abastecimento_alvo: Number(a.abastecimento_alvo != null ? a.abastecimento_alvo : 45) };
+  pintaResumo(); pintaReserva();
 }
 
-function pintaCaixa(r){
-  if (papel !== "entregador") return;
+function estimaGasolina(lista){
   const a = ajustesCx;
   const kmDe = p => { const z = zonas.find(x => x.id === p.bairro_id); return z && z.km_ida != null ? Number(z.km_ida) : null; };
-  const conhecidas = r.ok.map(kmDe).filter(k => k != null);
+  const conhecidas = lista.map(kmDe).filter(k => k != null);
   const media = conhecidas.length ? conhecidas.reduce((s, k) => s + k, 0) / conhecidas.length : 10;
   let km = 0, lit = 0, sem = 0;
-  r.ok.forEach(p => {
+  lista.forEach(p => {
     const b = p.baixas && p.baixas[0];
     const v = (b && b.veiculo_usado) || (p.veiculo === "moto" ? "moto" : "carro");
     const k0 = kmDe(p); if (k0 == null) sem++;
     const k = (k0 == null ? media : k0) * a.fator_km;
     km += k; lit += k / (v === "moto" ? a.consumo_moto : a.consumo_carro);
   });
-  const gas = Math.round(lit * a.preco_litro * 100) / 100;
+  return { km, lit, sem, gas: Math.round(lit * a.preco_litro * 100) / 100 };
+}
+
+async function carregaReserva(){
+  if (papel !== "entregador") return;
+  reservaTs = Date.now();
+  const [rr, ra] = await Promise.all([
+    db.from("pedidos").select("id,bairro_id,veiculo,valor_cobrado,status,baixas(veiculo_usado)").eq("status", "concluida").limit(5000),
+    db.from("abastecimentos").select("*").order("data", { ascending: false }).limit(50)
+  ]);
+  if (rr.error || ra.error) return;
+  reservaDados = { rides: rr.data || [], abast: ra.data || [] };
+  pintaReserva();
+}
+
+function pintaReserva(){
+  if (papel !== "entregador") return;
+  const e = estimaGasolina(reservaDados.rides);
+  const abast = reservaDados.abast.reduce((s, x) => s + Number(x.valor), 0);
+  const saldo = Math.round((e.gas - abast) * 100) / 100;
+  const alvo = Number(ajustesCx.abastecimento_alvo) || 45;
+  let msg, borda = "";
+  if (saldo >= alvo) { msg = `<b>Já dá para abastecer ${brlc(saldo)}.</b>`; borda = "border-color:var(--gold);"; }
+  else if (saldo > 0) msg = `A abastecer: <b>${brlc(saldo)}</b>. Faltam ${brlc(alvo - saldo)} de reserva para um abastecimento de ${brlc(alvo)}.`;
+  else msg = saldo < 0 ? `Em dia. Você abasteceu ${brlc(-saldo)} além da reserva.` : "Em dia.";
+  const ult = reservaDados.abast.slice(0, 3).map(x => `<div class="qb"><span>${esc(fmtData(new Date(x.data + "T00:00:00")))}</span><span>${brlc(x.valor)} <a href="#" data-abdel="${esc(x.id)}" style="color:var(--bad);margin-left:10px;font-size:13px">remover</a></span></div>`).join("");
+  $("relReserva").innerHTML = `
+    <div class="sec" style="margin-top:0">Reserva de gasolina (acumulada)</div>
+    <div class="row">
+      <div class="stat"><span>Reservado das corridas</span><b>${brlc(e.gas)}</b></div>
+      <div class="stat"><span>Já abastecido</span><b>${brlc(abast)}</b></div>
+    </div>
+    <div class="card" style="${borda}margin:12px 0 0;padding:14px">${msg}</div>
+    ${ult ? `<div class="qbs">${ult}</div>` : ""}
+    <button class="ghost small" id="btnAbast" style="margin-top:12px">Registrar abastecimento</button>`;
+  $("btnAbast").onclick = abreAbast;
+  document.querySelectorAll("[data-abdel]").forEach(a => { a.onclick = ev => { ev.preventDefault(); apagaAbast(a.dataset.abdel); }; });
+}
+
+function abreAbast(){
+  const hj = isoDia(new Date());
+  $("abValor").value = ""; $("abData").value = hj; $("abData").max = hj;
+  $("abErr").classList.add("hide"); $("modalAbast").classList.remove("hide");
+}
+async function salvaAbast(){
+  const v = parseFloat($("abValor").value.replace(",", "."));
+  const erro = t => { $("abErr").textContent = t; $("abErr").classList.remove("hide"); };
+  if (!isFinite(v) || v <= 0) return erro("Informe o valor.");
+  if (!$("abData").value) return erro("Escolha o dia.");
+  const { error } = await db.from("abastecimentos").insert({ data: $("abData").value, valor: v });
+  if (error) return erro("Não foi possível salvar. Tente de novo.");
+  $("modalAbast").classList.add("hide");
+  await carregaReserva(); toast("Abastecimento registrado.");
+}
+async function apagaAbast(id){
+  if (!confirm("Remover este abastecimento?")) return;
+  const { error } = await db.from("abastecimentos").delete().eq("id", id);
+  if (error) { toast("Não foi possível remover."); return; }
+  await carregaReserva();
+}
+$("abFechar").onclick = () => $("modalAbast").classList.add("hide");
+$("abSalvar").onclick = salvaAbast;
+
+function pintaCaixa(r){
+  if (papel !== "entregador") return;
+  const a = ajustesCx;
+  const e = estimaGasolina(r.ok);
+  const km = e.km, lit = e.lit, sem = e.sem, gas = e.gas;
   const lucro = Math.round((r.total - gas) * 100) / 100;
   const pct = r.total > 0 ? Math.round(gas / r.total * 100) : 0;
   $("relCaixaCorpo").innerHTML = `
@@ -1109,13 +1194,14 @@ function abreAjustes(){
       <div><label>Distância de ida (km)</label><input data-min="k" data-id="${z.id}" inputmode="decimal" value="${f(z.km_ida)}"></div>
     </div></div>`).join("");
   $("aLitro").value = f(ajustesCx.preco_litro); $("aFator").value = f(ajustesCx.fator_km);
-  $("aCarro").value = f(ajustesCx.consumo_carro); $("aMoto").value = f(ajustesCx.consumo_moto);
+  $("aCarro").value = f(ajustesCx.consumo_carro); $("aMoto").value = f(ajustesCx.consumo_moto); $("aAlvo").value = f(ajustesCx.abastecimento_alvo);
   $("modalAjustes").classList.remove("hide");
 }
 async function salvaAjustes(){
   const erro = t => { $("minOk").classList.add("hide"); $("minErr").textContent = t; $("minErr").classList.remove("hide"); };
   const num = id => parseFloat($(id).value.replace(",", "."));
-  const aj = { preco_litro: num("aLitro"), fator_km: num("aFator"), consumo_carro: num("aCarro"), consumo_moto: num("aMoto") };
+  const aj = { preco_litro: num("aLitro"), fator_km: num("aFator"), consumo_carro: num("aCarro"), consumo_moto: num("aMoto"), abastecimento_alvo: num("aAlvo") };
+  if (!isFinite(aj.abastecimento_alvo) || aj.abastecimento_alvo <= 0) return erro("Informe o valor de um abastecimento.");
   if (!isFinite(aj.preco_litro) || aj.preco_litro <= 0) return erro("Informe o preço do litro.");
   if (!isFinite(aj.fator_km) || aj.fator_km < 0.5 || aj.fator_km > 4) return erro("Km rodados por km de ida deve ficar entre 0,5 e 4.");
   if (!isFinite(aj.consumo_carro) || aj.consumo_carro <= 0 || !isFinite(aj.consumo_moto) || aj.consumo_moto <= 0) return erro("Informe o consumo do carro e da moto.");
