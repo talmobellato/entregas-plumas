@@ -184,6 +184,10 @@ details.dia>summary b{flex:1;text-transform:capitalize}
 .qbs{margin-top:16px;border-top:1px solid var(--line)}
 .qb{display:flex;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid var(--line);font-size:15px}
 .qb span:first-child{text-transform:capitalize}
+.pills{display:flex;flex-direction:column;align-items:flex-end;gap:6px}
+.pill.gray{background:var(--track);color:var(--ink2)}
+.pill svg{width:12px;height:12px;vertical-align:-1px;margin-right:4px}
+.item.paid{border-color:var(--ok)}
 .pixbox{margin-top:14px;padding-top:14px;border-top:1px solid var(--line)}
 .pixkey{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:14px;word-break:break-all;margin-top:4px}
 .toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:12px 18px;border-radius:999px;font-size:15px;z-index:60;max-width:90%;text-align:center;box-shadow:0 8px 24px rgba(0,0,0,.3)}
@@ -350,6 +354,7 @@ details.dia>summary b{flex:1;text-transform:capitalize}
       <div class="stat okk"><span>Entregues</span><b id="cFeito">0</b></div>
       <div class="stat"><span>Com problema</span><b id="cProb">0</b></div>
     </div>
+    <div class="hint" id="cPagas" style="margin:-4px 0 14px"></div>
     <button class="ghost" id="btnRetro" style="margin-bottom:14px">+ Registrar entrega já feita</button>
     <div id="listaHist"></div>
   </section>
@@ -364,6 +369,7 @@ details.dia>summary b{flex:1;text-transform:capitalize}
       <button class="ghost small" id="btnCaixaAj" style="margin-top:12px">Ajustar cálculo</button>
     </div>
     <button class="primary hide" id="relSolicitar">Solicitar pagamento</button>
+    <button class="ghost hide" id="relJaPago" style="margin-top:10px">Registrar pagamento já recebido</button>
     <div class="row" style="margin-top:10px">
       <button id="relImprimir">Imprimir ou salvar PDF</button>
       <button id="relCopiar">Copiar resumo</button>
@@ -672,9 +678,10 @@ function cardPedido(p, modo){
   const outroDia = (modo === "aberta" || modo === "antes") && dia0(p.horario_limite).getTime() !== hoje;
   let cls = "", marca = "", badge = "", hora = horaBR(p.horario_limite);
   if (feita) {
-    cls = "done"; marca = `<span class="mark ok" role="img" aria-label="Entregue">${IC_CHECK}</span>`;
+    cls = p.pago_em ? "done paid" : "done"; marca = `<span class="mark ok" role="img" aria-label="Entregue">${IC_CHECK}</span>`;
     if (b) hora = horaBR(b.concluida_em);
-    badge = `<span class="pill ok">Entregue</span>`;
+    const pagoPill = p.pago_em ? `<span class="pill ok">${IC_CHECK}Paga</span>` : (p.pagamento_id ? '<span class="pill warn">Pagamento solicitado</span>' : '<span class="pill gray">Pagamento pendente</span>');
+    badge = `<div class="pills"><span class="pill ok">Entregue</span>${pagoPill}</div>`;
   } else if (prob) {
     cls = "prob"; marca = `<span class="mark bad" role="img" aria-label="Com problema">!</span>`;
     badge = `<span class="pill bad">${esc(b ? b.motivo_problema : "problema")}</span>`;
@@ -698,6 +705,7 @@ function cardPedido(p, modo){
       <div class="end">${esc(p.endereco)}</div>
       <div class="meta">${meta}</div>
       ${feita && b && b.recebido_por ? `<div class="recebido">Recebido por ${esc(b.recebido_por)}</div>` : ""}
+      ${feita && p.pago_em ? `<div class="meta">Pagamento recebido em ${esc(fmtData(new Date(p.pago_em)))}</div>` : ""}
       ${p.observacoes && p.observacoes !== "Registrada depois" ? `<div class="meta">${esc(p.observacoes)}</div>` : ""}
       ${acts}${acts2}
     </div>`;
@@ -719,6 +727,8 @@ function pintaHist(){
   const c = { pend: 0, feita: 0, prob: 0 };
   periodoDados.forEach(p => { if (p.status === "concluida") c.feita++; else if (p.status === "com_problema") c.prob++; else c.pend++; });
   $("cPend").textContent = c.pend; $("cFeito").textContent = c.feita; $("cProb").textContent = c.prob;
+  const pagas = periodoDados.filter(p => p.status === "concluida" && p.pago_em).length;
+  $("cPagas").textContent = c.feita ? pagas + " paga(s) · " + (c.feita - pagas) + " com pagamento pendente" : "";
   let h = "";
   if (papel === "loja" && atrasadosAntes.length) {
     h += '<div class="dia-h-plain"><b>Em aberto de dias anteriores</b></div>' + atrasadosAntes.map(p => cardPedido(p, "antes")).join("");
@@ -819,6 +829,7 @@ function entra(p){
   $("papel").textContent = p === "loja" ? "Loja · Palácio das Plumas" : "Entregador";
   $("btnAjustes").classList.toggle("hide", p !== "entregador");
   $("relSolicitar").classList.toggle("hide", p !== "entregador");
+  $("relJaPago").classList.toggle("hide", p !== "entregador");
   carregaZonas();
   carregaAjustes();
   if (p === "loja") { iniciaForm(); carregaHistorico(); }
@@ -1078,6 +1089,9 @@ function pintaResumo(){
     const btn = $("relSolicitar");
     btn.disabled = r.disponivel <= 0;
     btn.textContent = r.disponivel > 0 ? "Solicitar pagamento · " + brlc(r.disponivel) + (r.taxaDisp > 0 ? " (com taxa)" : "") : "Nada a solicitar neste período";
+    const bj = $("relJaPago");
+    bj.disabled = r.disponivel <= 0;
+    bj.textContent = r.disponivel > 0 ? "Registrar pagamento já recebido · " + brlc(r.disponivel) : "Nada a registrar como recebido";
   }
   pintaPag();
   pintaCaixa(r);
@@ -1125,6 +1139,17 @@ async function solicitaPagamento(){
   if (error) { msgRel("Não foi possível registrar a solicitação."); return; }
   await carregaPedidos();
   msgRel("Solicitação registrada. A loja foi avisada no Telegram.");
+}
+
+async function registraPagoDireto(){
+  const r = resumoPeriodo();
+  if (!r.elegiveis.length) { msgRel("Nada a registrar neste período."); return; }
+  if (!confirm("Registrar " + brlc(r.disponivel) + " (" + r.elegiveis.length + " entrega(s)) como já recebido? A loja passa a ver essas entregas como pagas.")) return;
+  const [a,b] = periodoRel(); const f = new Date(b); f.setDate(f.getDate() - 1);
+  const { error } = await db.rpc("registrar_pagamento_recebido", { p_ids: r.elegiveis.map(p => p.id), p_inicio: isoDia(a), p_fim: isoDia(f) });
+  if (error) { msgRel("Não foi possível registrar."); return; }
+  await carregaPedidos();
+  toast("Pagamento registrado.");
 }
 
 async function marcaPago(id){
@@ -1193,6 +1218,7 @@ document.querySelectorAll("#segRetro button").forEach(b => {
   b.onclick = () => { rVeic = b.dataset.rv; pintaSeg("segRetro", "rv", rVeic); };
 });
 $("relSolicitar").onclick = solicitaPagamento;
+$("relJaPago").onclick = registraPagoDireto;
 
 function abreAjustes(){
   $("minErr").classList.add("hide"); $("minOk").classList.add("hide");
