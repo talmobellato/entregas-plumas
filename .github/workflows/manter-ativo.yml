@@ -2,16 +2,20 @@ name: Manter projeto ativo
 
 on:
   schedule:
-    - cron: "0 12 * * *"
+    - cron: "0 */3 * * *"
   workflow_dispatch:
 
 jobs:
   ping:
     runs-on: ubuntu-latest
     steps:
-      - name: Consulta leve ao banco
+      - name: Consultas leves ao banco
         run: |
-          curl -s -o /dev/null -w "%{http_code}\n" \
-            "https://tfcjhrkykjxmrqmtmnzt.supabase.co/rest/v1/bairros?select=id&limit=1" \
-            -H "apikey: sb_publishable_hMFjx1Uof1KDkTyNqk7vnQ_0tk-jA9y" \
-            -H "Authorization: Bearer sb_publishable_hMFjx1Uof1KDkTyNqk7vnQ_0tk-jA9y"
+          URL="https://tfcjhrkykjxmrqmtmnzt.supabase.co/rest/v1"
+          KEY="sb_publishable_hMFjx1Uof1KDkTyNqk7vnQ_0tk-jA9y"
+          H1="apikey: $KEY"
+          H2="Authorization: Bearer $KEY"
+          for t in bairros ajustes pedidos; do
+            curl -s -o /dev/null -w "$t: %{http_code}\n" "$URL/$t?select=id&limit=1" -H "$H1" -H "$H2"
+          done
+          curl -s -o /dev/null -w "ping_atividade: %{http_code}\n" -X POST "$URL/rpc/ping_atividade" -H "$H1" -H "$H2" -H "Content-Type: application/json" -d '{}'
