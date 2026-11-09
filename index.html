@@ -434,6 +434,7 @@ details.dia>summary b{flex:1;text-transform:capitalize}
       <div class="field"><label for="abValor">Valor (R$)</label><input id="abValor" inputmode="decimal" placeholder="0,00"></div>
       <div class="field"><label for="abData">Dia</label><input id="abData" type="date"></div>
     </div>
+    <div class="field"><label for="abEnt">Parte das entregas (R$)</label><input id="abEnt" inputmode="decimal" placeholder="Em branco = tudo foi das entregas"><div class="hint">Se o tanque também serve para uso pessoal, informe só a parte que é das entregas.</div></div>
     <div class="err hide" id="abErr"></div>
     <div class="row" style="margin-top:6px">
       <button class="ghost" id="abFechar">Cancelar</button>
@@ -569,7 +570,8 @@ const BAIRROS = {
   2:["pinheiros","vila madalena","perdizes","lapa","pompeia","pompéia","barra funda","sumare","sumaré","itaim bibi","moema","vila olimpia","vila olímpia","brooklin","campo belo","santana","vila guilherme","casa verde","santa teresinha","butanta","butantã","vila leopoldina","alto de pinheiros","indianopolis","indianópolis","saude","saúde","ipiranga"],
   3:["mooca","tatuape","tatuapé","belenzinho","agua rasa","água rasa","vila prudente","sao lucas","são lucas","jabaquara","santo amaro","vila andrade","morumbi","socorro","vila formosa","penha","vila maria","tucuruvi","mandaqui","freguesia do o","freguesia do ó","pirituba","interlagos","cidade ademar","sacoma","sacomã","chacara klabin","chácara klabin","carrao","carrão","aricanduva"],
   4:["sapopemba","jardim sapopemba","itaquera","sao mateus","são mateus","cidade tiradentes","guaianases","itaim paulista","sao miguel","são miguel","ermelino matarazzo","parque edu chaves","edu chaves","jacana","jaçanã","brasilandia","brasilândia","perus","jaragua","jaraguá","capao redondo","capão redondo","mboi mirim","mbói mirim","grajau","grajaú","parelheiros","cidade dutra","campo limpo","jardim angela","jardim ângela","parque sao lucas","parque são lucas","vila jacui","vila jacuí","cangaiba","cangaíba","itaquaquecetuba"],
-  5:["cotia","granja viana","caucaia do alto"]
+  5:["cotia","granja viana","caucaia do alto"],
+  6:["campinas, sp","campinas - sp","campinas/sp","campinas sp","campinas, são paulo","campinas - são paulo"]
 };
 
 let papel = null, zonas = [], veiculo = "tanto_faz", pedidoAtual = null, timer = null;
@@ -586,7 +588,7 @@ function brl(n){ return "R$ " + Number(n).toLocaleString("pt-BR",{minimumFractio
 
 function detectaZona(txt){
   const t = (txt||"").toLowerCase();
-  for (const z of [5,4,3,2,1]) {
+  for (const z of [6,5,4,3,2,1]) {
     for (const b of BAIRROS[z]) { if (t.includes(b)) return z; }
   }
   return null;
@@ -978,19 +980,19 @@ async function carregaReserva(){
 function pintaReserva(){
   if (papel !== "entregador") return;
   const e = estimaGasolina(reservaDados.rides);
-  const abast = reservaDados.abast.reduce((s, x) => s + Number(x.valor), 0);
+  const abast = reservaDados.abast.reduce((s, x) => s + Number(x.valor_entregas != null ? x.valor_entregas : x.valor), 0);
   const saldo = Math.round((e.gas - abast) * 100) / 100;
   const alvo = Number(ajustesCx.abastecimento_alvo) || 45;
   let msg, borda = "";
   if (saldo >= alvo) { msg = `<b>Já dá para abastecer ${brlc(saldo)}.</b>`; borda = "border-color:var(--gold);"; }
   else if (saldo > 0) msg = `A abastecer: <b>${brlc(saldo)}</b>. Faltam ${brlc(alvo - saldo)} de reserva para um abastecimento de ${brlc(alvo)}.`;
   else msg = saldo < 0 ? `Em dia. Você abasteceu ${brlc(-saldo)} além da reserva.` : "Em dia.";
-  const ult = reservaDados.abast.slice(0, 3).map(x => `<div class="qb"><span>${esc(fmtData(new Date(x.data + "T00:00:00")))}</span><span>${brlc(x.valor)} <a href="#" data-abdel="${esc(x.id)}" style="color:var(--bad);margin-left:10px;font-size:13px">remover</a></span></div>`).join("");
+  const ult = reservaDados.abast.slice(0, 3).map(x => `<div class="qb"><span>${esc(fmtData(new Date(x.data + "T00:00:00")))}</span><span>${brlc(x.valor)}${x.valor_entregas != null && Number(x.valor_entregas) !== Number(x.valor) ? " (entregas " + brlc(x.valor_entregas) + ")" : ""} <a href="#" data-abdel="${esc(x.id)}" style="color:var(--bad);margin-left:10px;font-size:13px">remover</a></span></div>`).join("");
   $("relReserva").innerHTML = `
     <div class="sec" style="margin-top:0">Reserva de gasolina (acumulada)</div>
     <div class="row">
       <div class="stat"><span>Reservado das corridas</span><b>${brlc(e.gas)}</b></div>
-      <div class="stat"><span>Já abastecido</span><b>${brlc(abast)}</b></div>
+      <div class="stat"><span>Abastecido para as entregas</span><b>${brlc(abast)}</b></div>
     </div>
     <div class="card" style="${borda}margin:12px 0 0;padding:14px">${msg}</div>
     ${ult ? `<div class="qbs">${ult}</div>` : ""}
@@ -1001,7 +1003,7 @@ function pintaReserva(){
 
 function abreAbast(){
   const hj = isoDia(new Date());
-  $("abValor").value = ""; $("abData").value = hj; $("abData").max = hj;
+  $("abValor").value = ""; $("abEnt").value = ""; $("abData").value = hj; $("abData").max = hj;
   $("abErr").classList.add("hide"); $("modalAbast").classList.remove("hide");
 }
 async function salvaAbast(){
@@ -1009,7 +1011,10 @@ async function salvaAbast(){
   const erro = t => { $("abErr").textContent = t; $("abErr").classList.remove("hide"); };
   if (!isFinite(v) || v <= 0) return erro("Informe o valor.");
   if (!$("abData").value) return erro("Escolha o dia.");
-  const { error } = await db.from("abastecimentos").insert({ data: $("abData").value, valor: v });
+  const entTxt = $("abEnt").value.trim();
+  const ve = entTxt === "" ? v : parseFloat(entTxt.replace(",", "."));
+  if (!isFinite(ve) || ve < 0 || ve > v) return erro("A parte das entregas deve ficar entre 0 e o valor total.");
+  const { error } = await db.from("abastecimentos").insert({ data: $("abData").value, valor: v, valor_entregas: ve });
   if (error) return erro("Não foi possível salvar. Tente de novo.");
   $("modalAbast").classList.add("hide");
   await carregaReserva(); toast("Abastecimento registrado.");
