@@ -434,6 +434,7 @@ details.dia>summary b{flex:1;text-transform:capitalize}
       <div class="field"><label for="abValor">Valor (R$)</label><input id="abValor" inputmode="decimal" placeholder="0,00"></div>
       <div class="field"><label for="abData">Dia</label><input id="abData" type="date"></div>
     </div>
+    <div class="field"><label for="abOrigem">Pago com</label><select id="abOrigem"><option value="entregas">Dinheiro das entregas</option><option value="pessoal">Dinheiro pessoal</option><option value="cartao_mae">Cartão da minha mãe</option></select></div>
     <div class="field"><label for="abEnt">Parte das entregas (R$)</label><input id="abEnt" inputmode="decimal" placeholder="Em branco = tudo foi das entregas"><div class="hint">Se o tanque também serve para uso pessoal, informe só a parte que é das entregas.</div></div>
     <div class="err hide" id="abErr"></div>
     <div class="row" style="margin-top:6px">
@@ -987,7 +988,7 @@ function pintaReserva(){
   if (saldo >= alvo) { msg = `<b>Já dá para abastecer ${brlc(saldo)}.</b>`; borda = "border-color:var(--gold);"; }
   else if (saldo > 0) msg = `A abastecer: <b>${brlc(saldo)}</b>. Faltam ${brlc(alvo - saldo)} de reserva para um abastecimento de ${brlc(alvo)}.`;
   else msg = saldo < 0 ? `Em dia. Você abasteceu ${brlc(-saldo)} além da reserva.` : "Em dia.";
-  const ult = reservaDados.abast.slice(0, 3).map(x => `<div class="qb"><span>${esc(fmtData(new Date(x.data + "T00:00:00")))}</span><span>${brlc(x.valor)}${x.valor_entregas != null && Number(x.valor_entregas) !== Number(x.valor) ? " (entregas " + brlc(x.valor_entregas) + ")" : ""} <a href="#" data-abdel="${esc(x.id)}" style="color:var(--bad);margin-left:10px;font-size:13px">remover</a></span></div>`).join("");
+  const ult = reservaDados.abast.slice(0, 3).map(x => `<div class="qb"><span>${esc(fmtData(new Date(x.data + "T00:00:00")))}</span><span>${brlc(x.valor)}${x.valor_entregas != null && Number(x.valor_entregas) !== Number(x.valor) ? " (entregas " + brlc(x.valor_entregas) + ")" : ""}${x.origem === "cartao_mae" ? " · cartão da mãe" : x.origem === "pessoal" ? " · pessoal" : ""} <a href="#" data-abdel="${esc(x.id)}" style="color:var(--bad);margin-left:10px;font-size:13px">remover</a></span></div>`).join("");
   $("relReserva").innerHTML = `
     <div class="sec" style="margin-top:0">Reserva de gasolina (acumulada)</div>
     <div class="row">
@@ -1003,7 +1004,7 @@ function pintaReserva(){
 
 function abreAbast(){
   const hj = isoDia(new Date());
-  $("abValor").value = ""; $("abEnt").value = ""; $("abData").value = hj; $("abData").max = hj;
+  $("abValor").value = ""; $("abEnt").value = ""; $("abOrigem").value = "entregas"; $("abData").value = hj; $("abData").max = hj;
   $("abErr").classList.add("hide"); $("modalAbast").classList.remove("hide");
 }
 async function salvaAbast(){
@@ -1014,8 +1015,8 @@ async function salvaAbast(){
   const entTxt = $("abEnt").value.trim();
   const ve = entTxt === "" ? v : parseFloat(entTxt.replace(",", "."));
   if (!isFinite(ve) || ve < 0 || ve > v) return erro("A parte das entregas deve ficar entre 0 e o valor total.");
-  const { error } = await db.from("abastecimentos").insert({ data: $("abData").value, valor: v, valor_entregas: ve });
-  if (error) return erro("Não foi possível salvar. Tente de novo.");
+  const { error } = await db.from("abastecimentos").insert({ data: $("abData").value, valor: v, valor_entregas: ve, origem: $("abOrigem").value });
+  if (error) return erro(/Travado/.test(error.message || "") ? error.message : "Não foi possível salvar. Tente de novo.");
   $("modalAbast").classList.add("hide");
   await carregaReserva(); toast("Abastecimento registrado.");
 }
